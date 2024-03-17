@@ -60,17 +60,20 @@ func main() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello Worlda!"))
 	})
-	r.Post("/ingest", handleUpload)
 	r.Get("/version", getVersion)
+	r.Get("/daijin-config", getConfig)
 
 	// protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(clerkhttp.WithHeaderAuthorization())
 		r.Get("/hehez", protectedRoute)
+		r.Post("/ingest", handleUpload)
 	})
 
-	fmt.Println("Listening on localhost:3000")
-	http.ListenAndServe(":3000", r)
+	port := os.Getenv("PORT")
+
+	fmt.Println("Listening on localhost" + port)
+	http.ListenAndServe(port, r)
 }
 
 func generateS3Client() (*minio.Client, error) {
