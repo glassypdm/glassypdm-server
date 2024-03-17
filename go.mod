@@ -1,6 +1,6 @@
 module github.com/joshtenorio/daijincad-server
 
-go 1.18.0
+go 1.22.0
 
 require (
 	github.com/clerk/clerk-sdk-go/v2 v2.0.0
