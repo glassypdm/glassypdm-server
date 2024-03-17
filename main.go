@@ -72,8 +72,8 @@ func main() {
 
 	port := os.Getenv("PORT")
 
-	fmt.Println("Listening on localhost" + port)
-	http.ListenAndServe(port, r)
+	fmt.Println("Listening on localhost:" + port)
+	http.ListenAndServe(":"+port, r)
 }
 
 func generateS3Client() (*minio.Client, error) {
