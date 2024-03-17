@@ -1,7 +1,7 @@
 module github.com/joshtenorio/daijincad-server
 
 // +heroku goVersion go1.22
-go 1.22.0
+go 1.22.1
 
 require (
 	github.com/clerk/clerk-sdk-go/v2 v2.0.0
