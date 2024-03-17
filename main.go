@@ -61,6 +61,7 @@ func main() {
 		w.Write([]byte("Hello Worlda!"))
 	})
 	r.Post("/ingest", handleUpload)
+	r.Get("/version", getVersion)
 
 	// protected routes
 	r.Group(func(r chi.Router) {

@@ -1,4 +1,4 @@
-module joshtenorio/daijincad-server
+module github.com/joshtenorio/daijincad-server
 
 go 1.22.0
 
