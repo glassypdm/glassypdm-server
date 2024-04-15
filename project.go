@@ -12,6 +12,13 @@ type Project struct {
 	Team string `json:"team"`
 }
 
+// TODO move this to team.go?
+type Team struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// TODO is putting user id in query safe?
 func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("user") == "" {
 		// TODO handle error
@@ -65,13 +72,22 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// get teams where user is manager
+	var managers []Team
+	teamdto, err := db.Query("SELECT team.teamid, name FROM team INNER JOIN teampermission as tp WHERE tp.userid = ? AND tp.level >= 1", user)
+
+	for teamdto.Next() {
+		var t Team
+		teamdto.Scan(&t.Id, &t.Name)
+		managers = append(managers, t)
+	}
 	b, err := json.Marshal(projects)
-	fmt.Println(projects)
-	fmt.Println(string(b))
+	bt, err := json.Marshal(managers)
 	fmt.Fprintf(w, `
 	{
 		"user_id": "%s",
-		"projects": %s
+		"projects": %s,
+		"managed_teams": %s
 	}
-	`, user, string(b))
+	`, user, string(b), string(bt))
 }
