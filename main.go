@@ -75,13 +75,13 @@ func main() {
 	})
 	r.Get("/version", getVersion)
 	r.Get("/daijin-config", getConfig)
+	r.Get("/projects", getProjectsForUser)
 
 	// protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(clerkhttp.WithHeaderAuthorization())
 		r.Get("/hehez", protectedRoute)
 		r.Post("/ingest", handleUpload)
-		r.Get("/projects", getProjectsForUser)
 	})
 
 	port := os.Getenv("PORT")

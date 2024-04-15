@@ -4,27 +4,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"github.com/clerk/clerk-sdk-go/v2"
 )
 
 type Project struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
+	Team string `json:"team"`
 }
 
 func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
-	claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"access": "unauthorized"}`))
-		return
+	if r.URL.Query().Get("user") == "" {
+		// TODO handle error
 	}
+
+	user := r.URL.Query().Get("user")
 	db := createDB()
 	defer db.Close()
 
 	// get teams of user
-	teams, err := db.Query("SELECT teamid FROM teampermission WHERE userid = ? ", claims.Subject)
+	teams, err := db.Query("SELECT teamid FROM teampermission WHERE userid = ? ", user)
 
 	if err != nil {
 		fmt.Println("error!") // TODO print error
@@ -50,7 +48,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	// get projects
 	var projects []Project
 	for i := range teamids {
-		projectdto, err := db.Query("SELECT pid, title FROM project WHERE teamid = ?", i)
+		projectdto, err := db.Query("SELECT pid, title, name FROM project INNER JOIN team WHERE team.teamid = ?", i)
 		if err != nil {
 			fmt.Println("error!") // TODO print error
 			fmt.Fprintf(w, `
@@ -61,7 +59,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 		}
 		for projectdto.Next() {
 			var p Project
-			projectdto.Scan(&p.Id, &p.Name)
+			projectdto.Scan(&p.Id, &p.Name, &p.Team)
 
 			projects = append(projects, p)
 		}
@@ -75,5 +73,5 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 		"user_id": "%s",
 		"projects": %s
 	}
-	`, claims.Subject, string(b))
+	`, user, string(b))
 }
