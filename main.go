@@ -81,6 +81,7 @@ func main() {
 		r.Use(clerkhttp.WithHeaderAuthorization())
 		r.Get("/hehez", protectedRoute)
 		r.Post("/ingest", handleUpload)
+		r.Get("/projects", getProjectsForUser)
 	})
 
 	port := os.Getenv("PORT")
