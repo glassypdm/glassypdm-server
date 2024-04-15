@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/clerk/clerk-sdk-go/v2"
 )
 
 type Project struct {
@@ -16,6 +18,11 @@ type Project struct {
 type Team struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
+}
+
+type ProjectCreationRequest struct {
+	Name   string `json:"name"`
+	TeamID int    `json:"teamID"`
 }
 
 // TODO is putting user id in query safe?
@@ -32,7 +39,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	teams, err := db.Query("SELECT teamid FROM teampermission WHERE userid = ? ", user)
 
 	if err != nil {
-		fmt.Println("error!") // TODO print error
+		fmt.Println("error!") // TODO print the error
 		fmt.Fprintf(w, `
 		{
 			"status": "database went bonk"
@@ -52,7 +59,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(teamids)
 	defer teams.Close()
 
-	// get projects
+	// get projects for all user's teams
 	var projects []Project
 	for i := range teamids {
 		projectdto, err := db.Query("SELECT pid, title, name FROM project INNER JOIN team WHERE team.teamid = ?", i)
@@ -90,4 +97,60 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 		"managed_teams": %s
 	}
 	`, user, string(b), string(bt))
+}
+
+func createProject(w http.ResponseWriter, r *http.Request) {
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+
+	db := createDB()
+	defer db.Close()
+
+	var request ProjectCreationRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	_ = err // TODO
+
+	// check permission level in team
+	fmt.Println(request)
+	permission, err := db.Query("SELECT level FROM teampermission WHERE userid = ? and teamid = ?", claims.Subject, request.TeamID)
+	var level = -1
+	for permission.Next() {
+		permission.Scan(&level)
+	}
+	if level < 1 {
+		fmt.Fprintf(w, `
+		{
+			"status": "no permission"
+		}`)
+		return
+	}
+
+	// check for unique name
+	var count = 0
+	hehe, err := db.Query("SELECT COUNT(*) FROM project WHERE teamid = ? and title=?", request.TeamID, request.Name)
+	for hehe.Next() {
+		hehe.Scan(&count)
+	}
+	if count > 0 {
+		fmt.Fprintf(w, `
+		{
+			"status": "project name exists"
+		}`)
+		return
+	}
+
+	// TODO do we need to do something w/ base commit?
+	db.Exec("INSERT INTO project(title, teamid) VALUES (?, ?)", request.Name, request.TeamID)
+	_ = claims // temp
+
+	fmt.Fprintf(w,
+		`
+	{
+		"status": "success"
+	}
+	`)
 }
