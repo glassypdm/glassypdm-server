@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 )
@@ -153,4 +154,29 @@ func createProject(w http.ResponseWriter, r *http.Request) {
 		"status": "success"
 	}
 	`)
+}
+
+func getProjectInfo(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("pid") == "" {
+		// TODO handle error
+	}
+
+	pid, err := strconv.Atoi(r.URL.Query().Get("pid"))
+	_ = err
+
+	db := createDB()
+	defer db.Close()
+
+	rows, err := db.Query("SELECT title FROM project WHERE pid = ?", pid)
+
+	var projectname = ""
+	for rows.Next() {
+		rows.Scan(&projectname)
+	}
+
+	fmt.Fprintf(w, `
+	{
+		"title": "%s"
+	}
+	`, projectname)
 }

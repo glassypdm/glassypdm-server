@@ -76,7 +76,7 @@ func main() {
 	r.Get("/version", getVersion)
 	r.Get("/daijin-config", getConfig)
 	r.Get("/projects", getProjectsForUser)
-
+	r.Get("/project", getProjectInfo)
 	// protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(clerkhttp.WithHeaderAuthorization())
