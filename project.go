@@ -63,7 +63,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	// get projects for all user's teams
 	var projects []Project
 	for i := range teamids {
-		projectdto, err := db.Query("SELECT pid, title, name FROM project INNER JOIN team WHERE team.teamid = ?", i)
+		projectdto, err := db.Query("SELECT pid, title, name FROM project INNER JOIN team WHERE team.teamid = ? AND project.teamid = ?", i, i)
 		if err != nil {
 			fmt.Println("error!") // TODO print error
 			fmt.Fprintf(w, `
@@ -82,7 +82,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 
 	// get teams where user is manager
 	var managers []Team
-	teamdto, err := db.Query("SELECT team.teamid, name FROM team INNER JOIN teampermission as tp WHERE tp.userid = ? AND tp.level >= 1", user)
+	teamdto, err := db.Query("SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission as tp WHERE tp.userid = ? AND tp.level >= 2", user)
 
 	for teamdto.Next() {
 		var t Team
