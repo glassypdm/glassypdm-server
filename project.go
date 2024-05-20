@@ -146,7 +146,6 @@ func createProject(w http.ResponseWriter, r *http.Request) {
 
 	// TODO do we need to do something w/ base commit?
 	db.Exec("INSERT INTO project(title, teamid) VALUES (?, ?)", request.Name, request.TeamID)
-	_ = claims // temp
 
 	fmt.Fprintf(w,
 		`

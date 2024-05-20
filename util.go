@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 
 	"database/sql"
 
+	"github.com/clerk/clerk-sdk-go/v2/user"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
@@ -40,4 +42,24 @@ func createDB() *sql.DB {
 		os.Exit(1)
 	}
 	return db
+}
+
+func getUserIDByEmail(email string) string {
+	ctx := context.Background()
+	param := user.ListParams{EmailAddresses: []string{email}}
+
+	// we expect only one user per email
+	res, err := user.List(ctx, &param)
+	// FIXME handle error
+	if err != nil || len(res.Users) > 1 {
+		return ""
+	} else if len(res.Users) == 0 {
+		return ""
+	}
+
+	userid := ""
+	for _, user := range res.Users {
+		userid = user.ID
+	}
+	return userid
 }

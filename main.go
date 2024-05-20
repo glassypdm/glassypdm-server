@@ -71,18 +71,21 @@ func main() {
 
 	r.Use(middleware.Logger)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello Worlda!"))
+		w.Write([]byte("Hello"))
 	})
 	r.Get("/version", getVersion)
 	r.Get("/daijin-config", getConfig)
 	r.Get("/projects", getProjectsForUser)
 	r.Get("/project", getProjectInfo)
+
 	// protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(clerkhttp.WithHeaderAuthorization())
 		r.Get("/hehez", protectedRoute)
 		r.Post("/ingest", handleUpload)
 		r.Post("/project", createProject)
+		r.Get("/permission", getPermission)
+		r.Post("/permission", setPermission)
 	})
 
 	port := os.Getenv("PORT")
