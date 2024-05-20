@@ -86,6 +86,7 @@ func main() {
 		r.Post("/project", createProject)
 		r.Get("/permission", getPermission)
 		r.Post("/permission", setPermission)
+		r.Get("/team/members", getTeamMembership)
 	})
 
 	port := os.Getenv("PORT")

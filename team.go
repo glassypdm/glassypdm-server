@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +11,12 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 )
+
+type Member struct {
+	//Id   string // TODO ???? maybe this should be email if anything
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
 
 func createTeam(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -43,10 +50,10 @@ func createTeam(w http.ResponseWriter, r *http.Request) {
 // 3: owner
 func checkPermissionByEmail(email string, teamid int) int {
 	ctx := context.Background()
-	param := user.ListParams{EmailAddresses: []string{email}} // FIXME rename param => something useful
+	searchResult := user.ListParams{EmailAddresses: []string{email}}
 
 	// we expect only one user per email
-	res, err := user.List(ctx, &param)
+	res, err := user.List(ctx, &searchResult)
 	if err != nil || len(res.Users) > 1 {
 		return -1
 	} else if len(res.Users) == 0 {
@@ -196,4 +203,88 @@ func setPermission(w http.ResponseWriter, r *http.Request) {
 		"response": "valid"
 	}
 	`)
+}
+
+func getTeamMembership(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	userId := claims.Subject
+	team := r.URL.Query().Get("teamId")
+	teamId, err := strconv.Atoi(team)
+	if err != nil {
+		fmt.Fprintf(w, `
+		{
+			"response": "incorrect format"
+		}
+		`)
+		return
+	}
+	level := checkPermissionByID(teamId, userId)
+	// if level is negative, you are not in the team
+	// and do not have permission to see team membership
+	if level < 0 {
+		fmt.Fprintf(w, `
+		{
+			"response": "no permission"
+		}`)
+		return
+	}
+
+	db := createDB()
+	defer db.Close()
+
+	memberdto, err := db.Query("SELECT userid, level FROM teampermission WHERE teamid = ?", teamId)
+	if err != nil {
+		fmt.Fprintf(w, `
+		{
+			"response": "db error"
+		}`)
+		return
+	}
+	var members []Member
+	for memberdto.Next() {
+		var m Member
+		var level int
+		var id string
+		memberdto.Scan(&id, &level)
+
+		switch level {
+		case 1:
+			m.Role = "Member"
+		case 2:
+			m.Role = "Manager"
+		case 3:
+			m.Role = "Owner"
+		default:
+			m.Role = "Undefined"
+		}
+
+		usr, err := user.Get(ctx, id)
+		if err != nil {
+			fmt.Println("error: invalid user id")
+			continue
+		}
+		m.Name = *usr.FirstName + " " + *usr.LastName
+		members = append(members, m)
+	}
+
+	m, err := json.Marshal(members)
+	if err != nil {
+		fmt.Fprintf(w, `
+		{
+			"response": "json error"
+		}`)
+		return
+	}
+	fmt.Fprintf(w, `
+	{
+		"response": "ok",
+		"teamid": %d,
+		"members": %s
+	}`, teamId, string(m))
 }
