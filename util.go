@@ -27,9 +27,11 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 func getConfig(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("brr")
 	data := struct {
-		Key string `json:"clerk_publickey"`
+		Key  string `json:"clerk_publickey"`
+		Name string `json:"name"`
 	}{}
 	data.Key = os.Getenv("CLERK_PUBLICKEY")
+	data.Name = os.Getenv("SERVER_NAME")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }

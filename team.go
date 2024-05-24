@@ -13,9 +13,9 @@ import (
 )
 
 type Member struct {
-	//Id   string // TODO ???? maybe this should be email if anything
-	Name string `json:"name"`
-	Role string `json:"role"`
+	EmailID string `json:"emailID"`
+	Name    string `json:"name"`
+	Role    string `json:"role"`
 }
 
 func createTeam(w http.ResponseWriter, r *http.Request) {
@@ -225,6 +225,7 @@ func getTeamMembership(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	level := checkPermissionByID(teamId, userId)
+	levelStr := ""
 	// if level is negative, you are not in the team
 	// and do not have permission to see team membership
 	if level < 0 {
@@ -233,6 +234,17 @@ func getTeamMembership(w http.ResponseWriter, r *http.Request) {
 			"response": "no permission"
 		}`)
 		return
+	}
+
+	switch level {
+	case 1:
+		levelStr = "Member"
+	case 2:
+		levelStr = "Manager"
+	case 3:
+		levelStr = "Owner"
+	default:
+		levelStr = "Undefined"
 	}
 
 	db := createDB()
@@ -270,6 +282,9 @@ func getTeamMembership(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		m.Name = *usr.FirstName + " " + *usr.LastName
+		// we don't send the actual email address
+		// for slightly better security
+		m.EmailID = *usr.PrimaryEmailAddressID
 		members = append(members, m)
 	}
 
@@ -284,7 +299,7 @@ func getTeamMembership(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `
 	{
 		"response": "ok",
-		"teamid": %d,
+		"role":"%s",
 		"members": %s
-	}`, teamId, string(m))
+	}`, levelStr, string(m))
 }
