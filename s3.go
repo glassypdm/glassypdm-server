@@ -26,24 +26,14 @@ func generateS3Client() (*minio.Client, error) {
 	})
 }
 
-// body:
-// commit message
-// list of hashes
-func commit(w http.ResponseWriter, r *http.Request) {
-	// check commiter has permission
-
-	// iterate through hashes to see if we have it in S3 (can see thru block table)
-	// if we need hashes, return nb
-	// otherwise, commit
-}
-
 // multipart
 // chunk + filekey (hash)
 func handleUpload(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(20 * (1 << 20)); err != nil { // TODO adjust max memory; currently 20 * (1 << 20) is 20 MB
+	if err := r.ParseMultipartForm(20 * (1 << 20)); err != nil { // TODO adjust max memory; currently 20 * (1 << 20) is 20 MB. config it from env
 		w.Write([]byte("error"))
 		return
 	}
+	// TODO make sure uploader has permission to upload to at least one project
 
 	file, _, err := r.FormFile("filekey")
 	// Create a buffer to store the header of the file in

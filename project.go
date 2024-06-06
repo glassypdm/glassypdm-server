@@ -179,3 +179,94 @@ func getProjectInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	`, projectname)
 }
+
+/*
+*
+body:
+- proposed commit number
+- commit msg
+- files: [
+{
+filepath
+size
+number of chunks
+list of hashes
+}
+]
+*/
+func commit(w http.ResponseWriter, r *http.Request) {
+	// check commiter has permission
+
+	// iterate through hashes to see if we have it in S3 (can see thru block table)
+	// if we need hashes, return nb
+	// otherwise, commit
+}
+
+// given a project id, returns the newest commit id used
+func getLatestCommit(w http.ResponseWriter, r *http.Request) {
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	userId := claims.Subject // temp
+	project := r.URL.Query().Get("projectId")
+	pid, err := strconv.Atoi(project)
+	if err != nil {
+		fmt.Fprintf(w, `
+		{
+			"response": "incorrect format"
+		}`)
+		return
+	}
+
+	db := createDB()
+	defer db.Close()
+
+	// check user permissions
+	// needs at least read permission
+	rows, err := db.Query("SELECT COUNT(*) FROM teampermission WHERE userid = ?", userId)
+	if err != nil {
+		fmt.Fprintf(w, `
+		{
+			"response": "database issue"
+		}`)
+		return
+	}
+	var count int
+	for rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			fmt.Fprintf(w, `
+			{
+				"response": "database issue"
+			}`)
+			return
+		}
+	}
+	if count < 1 {
+		fmt.Fprintf(w, `
+		{
+			"response": "invalid permission"
+		}`)
+	}
+
+	// get latest commit for pid
+	rows, err = db.Query("SELECT MAX(cid) FROM 'commit' WHERE projectid = ?", pid)
+	if err != nil {
+		fmt.Fprintf(w, `
+		{
+			"response": "database issue"
+		}`)
+		return
+	}
+	var commit int
+	for rows.Next() {
+		rows.Scan(&commit)
+	}
+	fmt.Fprintf(w, `
+	{
+		"response": "valid",
+		"newestCommit": %d
+	}`, commit)
+}
