@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -21,9 +22,39 @@ type Team struct {
 	Name string `json:"name"`
 }
 
+/*
+*
+body:
+- projectid, teamid
+- proposed commit number
+- commit msg
+- files: [
+{
+filepath
+size
+number of chunks
+list of hashes
+}
+]
+*/
+type File struct {
+	Path      string   `json:"path"`
+	Size      int      `json:"size"`
+	NumChunks int      `json:"num_chunks"`
+	Hashes    []string `json:"hashes"`
+}
+
+type CommitRequest struct {
+	ProjectId         int    `json:"projectId"`
+	TeamId            int    `json:"teamId"`
+	Message           string `json:"message"`
+	TentativeCommitId int    `json:"tentativeCommitId"`
+	Files             []File `json:"files"`
+}
+
 type ProjectCreationRequest struct {
 	Name   string `json:"name"`
-	TeamID int    `json:"teamID"`
+	TeamID int    `json:"teamId"`
 }
 
 // TODO is putting user id in query safe?
@@ -180,9 +211,37 @@ func getProjectInfo(w http.ResponseWriter, r *http.Request) {
 	`, projectname)
 }
 
+// 0 (not found and not in team): no permission at all
+// 1 (not found but in team): read only
+// 2 (found): write access
+// 3 (manager): manager, can add write access
+// 4 (owner): can set managers
+func getProjectPermissionByID(userId string, projectId int, teamId int) int {
+	teamPermission := checkPermissionByID(teamId, userId)
+	// not in team: < 1
+	if teamPermission < 1 {
+		return 0
+	}
+
+	db := createDB()
+	defer db.Close()
+
+	queryresult := db.QueryRow("SELECT level FROM projectpermission WHERE userid = ? AND projectid = ?", userId, projectId)
+	var level int
+	err := queryresult.Scan(&level)
+	if err == sql.ErrNoRows {
+		return 1 // read only
+	} else if err != nil {
+		return 0 // general error/no permission
+	}
+
+	return level
+}
+
 /*
 *
 body:
+- projectid, teamid
 - proposed commit number
 - commit msg
 - files: [
@@ -195,11 +254,42 @@ list of hashes
 ]
 */
 func commit(w http.ResponseWriter, r *http.Request) {
-	// check commiter has permission
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	userId := claims.Subject
+	var request CommitRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		fmt.Fprintf(w, `{ "response": "bad json" }`)
+	}
 
+	// check permission
+	projectPermission := getProjectPermissionByID(userId, request.ProjectId, request.TeamId)
+	if projectPermission < 2 {
+		fmt.Fprintf(w, `{ "response": "no permission" }`)
+		return
+	}
+
+	// TODO
 	// iterate through hashes to see if we have it in S3 (can see thru block table)
 	// if we need hashes, return nb
 	// otherwise, commit
+	var hashesMissing []string
+	for _, file := range request.Files {
+
+	}
+	if len(hashesMissing) > 0 {
+		// respond with nb
+		return
+	}
+
+	// TODO
+	// no hashes missing, so commit
+	// make an entry in the commit, file, and filerevision tables
 }
 
 // given a project id, returns the newest commit id used
@@ -210,14 +300,11 @@ func getLatestCommit(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"access": "unauthorized"}`))
 		return
 	}
-	userId := claims.Subject // temp
+	userId := claims.Subject
 	project := r.URL.Query().Get("projectId")
 	pid, err := strconv.Atoi(project)
 	if err != nil {
-		fmt.Fprintf(w, `
-		{
-			"response": "incorrect format"
-		}`)
+		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
 		return
 	}
 
@@ -228,36 +315,24 @@ func getLatestCommit(w http.ResponseWriter, r *http.Request) {
 	// needs at least read permission
 	rows, err := db.Query("SELECT COUNT(*) FROM teampermission WHERE userid = ?", userId)
 	if err != nil {
-		fmt.Fprintf(w, `
-		{
-			"response": "database issue"
-		}`)
+		fmt.Fprintf(w, `{ "response": "database issue" }`)
 		return
 	}
 	var count int
 	for rows.Next() {
 		if err := rows.Scan(&count); err != nil {
-			fmt.Fprintf(w, `
-			{
-				"response": "database issue"
-			}`)
+			fmt.Fprintf(w, `{ "response": "database issue" }`)
 			return
 		}
 	}
 	if count < 1 {
-		fmt.Fprintf(w, `
-		{
-			"response": "invalid permission"
-		}`)
+		fmt.Fprintf(w, `{ "response": "invalid permission" }`)
 	}
 
 	// get latest commit for pid
 	rows, err = db.Query("SELECT MAX(cid) FROM 'commit' WHERE projectid = ?", pid)
 	if err != nil {
-		fmt.Fprintf(w, `
-		{
-			"response": "database issue"
-		}`)
+		fmt.Fprintf(w, `{ "response": "database issue" }`)
 		return
 	}
 	var commit int

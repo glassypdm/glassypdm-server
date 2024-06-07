@@ -84,7 +84,7 @@ func checkPermissionByID(teamid int, userid string) int {
 		return level
 	}
 
-	return -1
+	return 0
 }
 
 // input: email of person and what team

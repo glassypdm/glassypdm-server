@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -27,15 +28,26 @@ func generateS3Client() (*minio.Client, error) {
 }
 
 // multipart
-// chunk + filekey (hash)
+// chunk + hash
 func handleUpload(w http.ResponseWriter, r *http.Request) {
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+
 	if err := r.ParseMultipartForm(20 * (1 << 20)); err != nil { // TODO adjust max memory; currently 20 * (1 << 20) is 20 MB. config it from env
 		w.Write([]byte("error"))
 		return
 	}
-	// TODO make sure uploader has permission to upload to at least one project
 
-	file, _, err := r.FormFile("filekey")
+	// ensure user can upload to at least one project/team
+	if !canUserUpload(claims.Subject) {
+		return // TODO error message
+	}
+
+	file, _, err := r.FormFile("file")
 	// Create a buffer to store the header of the file in
 
 	// set position back to start.
@@ -51,7 +63,13 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s3.PutObject(context.Background(), os.Getenv("S3_BUCKETNAME"), "readAAaame.md", file, file.(Sizer).Size(), minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	hash := r.FormValue("hash")
+	if hash == "" {
+		// TODO incomplete form
+		return
+	}
+
+	s3.PutObject(context.Background(), os.Getenv("S3_BUCKETNAME"), hash, file, file.(Sizer).Size(), minio.PutObjectOptions{ContentType: "application/octet-stream"})
 
 	w.Write([]byte("hehez"))
 }
