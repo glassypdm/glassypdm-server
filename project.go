@@ -279,9 +279,11 @@ func commit(w http.ResponseWriter, r *http.Request) {
 	// if we need hashes, return nb
 	// otherwise, commit
 	var hashesMissing []string
-	for _, file := range request.Files {
+	/*
+		for _, file := range request.Files {
 
-	}
+		}
+	*/
 	if len(hashesMissing) > 0 {
 		// respond with nb
 		return

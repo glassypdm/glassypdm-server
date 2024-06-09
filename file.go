@@ -38,10 +38,11 @@ func getLatestRevision(w http.ResponseWriter, r *http.Request) {
 // function that returns list of new files since commit number
 // body: project id
 func getNewFiles(w http.ResponseWriter, r *http.Request) {
-	claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"access": "unauthorized"}`))
-		return
-	}
+	/*
+		claims, ok := clerk.SessionClaimsFromContext(r.Context())
+		if !ok {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"access": "unauthorized"}`))
+			return
+		}*/
 }

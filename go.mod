@@ -1,4 +1,4 @@
-module github.com/joshtenorio/daijincad-server
+module github.com/joshtenorio/glassypdm-server
 
 // +heroku goVersion go1.22
 go 1.22.1

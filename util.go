@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 
-	"database/sql"
-
 	"github.com/clerk/clerk-sdk-go/v2/user"
+	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
@@ -44,6 +45,21 @@ func createDB() *sql.DB {
 		os.Exit(1)
 	}
 	return db
+}
+
+//go:embed schema.sql
+var ddl string
+
+func UseQueries() *sqlcgen.Queries {
+	ctx := context.Background()
+	db := createDB()
+	_, err := db.ExecContext(ctx, ddl)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	queries := sqlcgen.New(db)
+	return queries
 }
 
 func getUserIDByEmail(email string) string {
