@@ -87,32 +87,28 @@ func getUserIDByEmail(email string) string {
 // checks if a user can generally upload files
 // doesn't check permission for specific projects/teams
 func canUserUpload(userId string) bool {
-	db := createDB()
-	defer db.Close()
+	ctx := context.Background()
+	query := UseQueries()
 
 	// check team permission
 	// TODO: ensure that a team has at least one project for this to be a valid check
-	rows, err := db.Query("SELECT level FROM teampermission WHERE userid = ?", userId)
+	teampermissions, err := query.FindTeamPermissions(ctx, sql.NullString{String: userId, Valid: true})
 	if err != nil {
 		return false
 	}
-	for rows.Next() {
-		var level int
-		rows.Scan(&level)
-		if level >= 2 { // managers+ can upload regardless of project permission
+	for level := range teampermissions {
+		if level >= 2 {
 			return true
 		}
 	}
 
 	// check project permission
-	rows, err = db.Query("SELECT level FROM projectpermission WHERE userid = ?", userId)
+	projectpermissions, err := query.FindProjectPermissions(ctx, sql.NullString{String: userId, Valid: true})
 	if err != nil {
 		return false
 	}
-	for rows.Next() {
-		var level int
-		rows.Scan(&level)
-		if level >= 2 { // projectpermission of 2+ can upload
+	for level := range projectpermissions {
+		if level >= 2 {
 			return true
 		}
 	}
