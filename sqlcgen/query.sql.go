@@ -7,20 +7,283 @@ package sqlcgen
 
 import (
 	"context"
+	"database/sql"
 )
 
-const getProject = `-- name: GetProject :one
-SELECT pid, title, teamid, basecommit FROM project WHERE pid = ? LIMIT 1
+const checkProjectName = `-- name: CheckProjectName :one
+SELECT COUNT(*) FROM project
+WHERE teamid = ? and title=? LIMIT 1
 `
 
-func (q *Queries) GetProject(ctx context.Context, pid int64) (Project, error) {
-	row := q.db.QueryRowContext(ctx, getProject, pid)
-	var i Project
-	err := row.Scan(
-		&i.Pid,
-		&i.Title,
-		&i.Teamid,
-		&i.Basecommit,
-	)
+type CheckProjectNameParams struct {
+	Teamid sql.NullInt64
+	Title  sql.NullString
+}
+
+func (q *Queries) CheckProjectName(ctx context.Context, arg CheckProjectNameParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, checkProjectName, arg.Teamid, arg.Title)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const findProjectPermissions = `-- name: FindProjectPermissions :many
+SELECT level FROM projectpermission
+WHERE userid = ?
+`
+
+func (q *Queries) FindProjectPermissions(ctx context.Context, userid sql.NullString) ([]sql.NullInt64, error) {
+	rows, err := q.db.QueryContext(ctx, findProjectPermissions, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []sql.NullInt64
+	for rows.Next() {
+		var level sql.NullInt64
+		if err := rows.Scan(&level); err != nil {
+			return nil, err
+		}
+		items = append(items, level)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findTeamPermissions = `-- name: FindTeamPermissions :many
+SELECT level FROM teampermission
+WHERE userid = ?
+`
+
+func (q *Queries) FindTeamPermissions(ctx context.Context, userid sql.NullString) ([]sql.NullInt64, error) {
+	rows, err := q.db.QueryContext(ctx, findTeamPermissions, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []sql.NullInt64
+	for rows.Next() {
+		var level sql.NullInt64
+		if err := rows.Scan(&level); err != nil {
+			return nil, err
+		}
+		items = append(items, level)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findUserManagedTeams = `-- name: FindUserManagedTeams :many
+SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission as tp
+WHERE tp.userid = ? AND tp.level >= 2
+`
+
+type FindUserManagedTeamsRow struct {
+	Teamid int64
+	Name   sql.NullString
+}
+
+func (q *Queries) FindUserManagedTeams(ctx context.Context, userid sql.NullString) ([]FindUserManagedTeamsRow, error) {
+	rows, err := q.db.QueryContext(ctx, findUserManagedTeams, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindUserManagedTeamsRow
+	for rows.Next() {
+		var i FindUserManagedTeamsRow
+		if err := rows.Scan(&i.Teamid, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findUserProjects = `-- name: FindUserProjects :many
+SELECT pid, title, name FROM project INNER JOIN team
+WHERE team.teamid = ? AND project.teamid = ?
+`
+
+type FindUserProjectsParams struct {
+	Teamid   int64
+	Teamid_2 sql.NullInt64
+}
+
+type FindUserProjectsRow struct {
+	Pid   int64
+	Title sql.NullString
+	Name  sql.NullString
+}
+
+func (q *Queries) FindUserProjects(ctx context.Context, arg FindUserProjectsParams) ([]FindUserProjectsRow, error) {
+	rows, err := q.db.QueryContext(ctx, findUserProjects, arg.Teamid, arg.Teamid_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindUserProjectsRow
+	for rows.Next() {
+		var i FindUserProjectsRow
+		if err := rows.Scan(&i.Pid, &i.Title, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findUserTeams = `-- name: FindUserTeams :many
+SELECT teamid FROM teampermission
+WHERE userid = ?
+`
+
+func (q *Queries) FindUserTeams(ctx context.Context, userid sql.NullString) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, findUserTeams, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []sql.NullString
+	for rows.Next() {
+		var teamid sql.NullString
+		if err := rows.Scan(&teamid); err != nil {
+			return nil, err
+		}
+		items = append(items, teamid)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getLatestCommit = `-- name: GetLatestCommit :one
+SELECT MAX(cid) FROM 'commit'
+WHERE projectid = ? LIMIT 1
+`
+
+func (q *Queries) GetLatestCommit(ctx context.Context, projectid sql.NullInt64) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getLatestCommit, projectid)
+	var max interface{}
+	err := row.Scan(&max)
+	return max, err
+}
+
+const getProjectInfo = `-- name: GetProjectInfo :one
+SELECT title FROM project
+WHERE pid = ? LIMIT 1
+`
+
+func (q *Queries) GetProjectInfo(ctx context.Context, pid int64) (sql.NullString, error) {
+	row := q.db.QueryRowContext(ctx, getProjectInfo, pid)
+	var title sql.NullString
+	err := row.Scan(&title)
+	return title, err
+}
+
+const getProjectPermission = `-- name: GetProjectPermission :one
+SELECT level FROM projectpermission
+WHERE userid = ? AND projectid = ? LIMIT 1
+`
+
+type GetProjectPermissionParams struct {
+	Userid    sql.NullString
+	Projectid sql.NullInt64
+}
+
+func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermissionParams) (sql.NullInt64, error) {
+	row := q.db.QueryRowContext(ctx, getProjectPermission, arg.Userid, arg.Projectid)
+	var level sql.NullInt64
+	err := row.Scan(&level)
+	return level, err
+}
+
+const getTeamPermission = `-- name: GetTeamPermission :one
+SELECT level FROM teampermission
+WHERE teamid = ? AND userid = ?
+LIMIT 1
+`
+
+type GetTeamPermissionParams struct {
+	Teamid sql.NullString
+	Userid sql.NullString
+}
+
+func (q *Queries) GetTeamPermission(ctx context.Context, arg GetTeamPermissionParams) (sql.NullInt64, error) {
+	row := q.db.QueryRowContext(ctx, getTeamPermission, arg.Teamid, arg.Userid)
+	var level sql.NullInt64
+	err := row.Scan(&level)
+	return level, err
+}
+
+const getUploadPermission = `-- name: GetUploadPermission :one
+SELECT COUNT(*) FROM teampermission
+WHERE userid = ? LIMIT 1
+`
+
+func (q *Queries) GetUploadPermission(ctx context.Context, userid sql.NullString) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getUploadPermission, userid)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const insertProject = `-- name: InsertProject :exec
+INSERT INTO project(title, teamid)
+VALUES (?, ?)
+`
+
+type InsertProjectParams struct {
+	Title  sql.NullString
+	Teamid sql.NullInt64
+}
+
+func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) error {
+	_, err := q.db.ExecContext(ctx, insertProject, arg.Title, arg.Teamid)
+	return err
+}
+
+const setTeamPermission = `-- name: SetTeamPermission :one
+INSERT INTO teampermission(userid, teamid, level)
+VALUES(?, ?, ?) ON CONFLICT(userid, teamid) DO UPDATE SET level=?
+RETURNING userid, teamid, level
+`
+
+type SetTeamPermissionParams struct {
+	Userid sql.NullString
+	Teamid sql.NullString
+	Level  sql.NullInt64
+}
+
+func (q *Queries) SetTeamPermission(ctx context.Context, arg SetTeamPermissionParams) (Teampermission, error) {
+	row := q.db.QueryRowContext(ctx, setTeamPermission, arg.Userid, arg.Teamid, arg.Level)
+	var i Teampermission
+	err := row.Scan(&i.Userid, &i.Teamid, &i.Level)
 	return i, err
 }

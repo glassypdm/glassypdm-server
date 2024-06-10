@@ -53,6 +53,8 @@ var ddl string
 func UseQueries() *sqlcgen.Queries {
 	ctx := context.Background()
 	db := createDB()
+	defer db.Close()
+
 	_, err := db.ExecContext(ctx, ddl)
 	if err != nil {
 		os.Exit(1)
