@@ -60,15 +60,15 @@ SELECT level FROM teampermission
 WHERE userid = ?
 `
 
-func (q *Queries) FindTeamPermissions(ctx context.Context, userid sql.NullString) ([]sql.NullInt64, error) {
+func (q *Queries) FindTeamPermissions(ctx context.Context, userid string) ([]int64, error) {
 	rows, err := q.db.QueryContext(ctx, findTeamPermissions, userid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []sql.NullInt64
+	var items []int64
 	for rows.Next() {
-		var level sql.NullInt64
+		var level int64
 		if err := rows.Scan(&level); err != nil {
 			return nil, err
 		}
@@ -93,7 +93,7 @@ type FindUserManagedTeamsRow struct {
 	Name   sql.NullString
 }
 
-func (q *Queries) FindUserManagedTeams(ctx context.Context, userid sql.NullString) ([]FindUserManagedTeamsRow, error) {
+func (q *Queries) FindUserManagedTeams(ctx context.Context, userid string) ([]FindUserManagedTeamsRow, error) {
 	rows, err := q.db.QueryContext(ctx, findUserManagedTeams, userid)
 	if err != nil {
 		return nil, err
@@ -160,15 +160,15 @@ SELECT teamid FROM teampermission
 WHERE userid = ?
 `
 
-func (q *Queries) FindUserTeams(ctx context.Context, userid sql.NullString) ([]sql.NullString, error) {
+func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]int64, error) {
 	rows, err := q.db.QueryContext(ctx, findUserTeams, userid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []sql.NullString
+	var items []int64
 	for rows.Next() {
-		var teamid sql.NullString
+		var teamid int64
 		if err := rows.Scan(&teamid); err != nil {
 			return nil, err
 		}
@@ -224,6 +224,39 @@ func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermis
 	return level, err
 }
 
+const getTeamMembership = `-- name: GetTeamMembership :many
+SELECT userid, level FROM teampermission
+WHERE teamid = ?
+`
+
+type GetTeamMembershipRow struct {
+	Userid string
+	Level  int64
+}
+
+func (q *Queries) GetTeamMembership(ctx context.Context, teamid int64) ([]GetTeamMembershipRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTeamMembership, teamid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTeamMembershipRow
+	for rows.Next() {
+		var i GetTeamMembershipRow
+		if err := rows.Scan(&i.Userid, &i.Level); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTeamPermission = `-- name: GetTeamPermission :one
 SELECT level FROM teampermission
 WHERE teamid = ? AND userid = ?
@@ -231,13 +264,13 @@ LIMIT 1
 `
 
 type GetTeamPermissionParams struct {
-	Teamid sql.NullString
-	Userid sql.NullString
+	Teamid int64
+	Userid string
 }
 
-func (q *Queries) GetTeamPermission(ctx context.Context, arg GetTeamPermissionParams) (sql.NullInt64, error) {
+func (q *Queries) GetTeamPermission(ctx context.Context, arg GetTeamPermissionParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getTeamPermission, arg.Teamid, arg.Userid)
-	var level sql.NullInt64
+	var level int64
 	err := row.Scan(&level)
 	return level, err
 }
@@ -247,7 +280,7 @@ SELECT COUNT(*) FROM teampermission
 WHERE userid = ? LIMIT 1
 `
 
-func (q *Queries) GetUploadPermission(ctx context.Context, userid sql.NullString) (int64, error) {
+func (q *Queries) GetUploadPermission(ctx context.Context, userid string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getUploadPermission, userid)
 	var count int64
 	err := row.Scan(&count)
@@ -276,9 +309,9 @@ RETURNING userid, teamid, level
 `
 
 type SetTeamPermissionParams struct {
-	Userid sql.NullString
-	Teamid sql.NullString
-	Level  sql.NullInt64
+	Userid string
+	Teamid int64
+	Level  int64
 }
 
 func (q *Queries) SetTeamPermission(ctx context.Context, arg SetTeamPermissionParams) (Teampermission, error) {

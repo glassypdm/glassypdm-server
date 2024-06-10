@@ -92,11 +92,11 @@ func canUserUpload(userId string) bool {
 
 	// check team permission
 	// TODO: ensure that a team has at least one project for this to be a valid check
-	teampermissions, err := query.FindTeamPermissions(ctx, sql.NullString{String: userId, Valid: true})
+	teampermissions, err := query.FindTeamPermissions(ctx, userId)
 	if err != nil {
 		return false
 	}
-	for level := range teampermissions {
+	for _, level := range teampermissions {
 		if level >= 2 {
 			return true
 		}

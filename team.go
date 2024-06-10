@@ -10,6 +10,7 @@ import (
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
+	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 )
 
 type Member struct {
@@ -28,10 +29,7 @@ func createTeam(w http.ResponseWriter, r *http.Request) {
 	_ = claims // temp
 
 	if os.Getenv("OPEN_TEAMS") == "0" {
-		fmt.Fprintf(w, `
-		{
-			"status": "disabled"
-		}`)
+		fmt.Fprintf(w, `{ "status": "disabled" }`)
 		return
 	}
 
@@ -71,20 +69,15 @@ func checkPermissionByEmail(email string, teamid int) int {
 }
 
 func checkPermissionByID(teamid int, userid string) int {
-	db := createDB()
-	defer db.Close()
+	ctx := context.Background()
 
-	permission, err := db.Query("SELECT level FROM teampermission WHERE teamid = ? AND userid = ? ", teamid, userid)
+	query := UseQueries()
+
+	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(teamid), Userid: userid})
 	if err != nil {
 		return -1
 	}
-	for permission.Next() {
-		var level int
-		permission.Scan(&level)
-		return level
-	}
-
-	return 0
+	return int(permission)
 }
 
 // input: email of person and what team
@@ -97,11 +90,7 @@ func getPermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Query().Get("userEmail") == "" && r.URL.Query().Get("teamId") == "" {
-		fmt.Fprintf(w, `
-		{
-			"response": "incorrect format"
-		}
-		`)
+		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
 		return
 	}
 
@@ -109,11 +98,7 @@ func getPermission(w http.ResponseWriter, r *http.Request) {
 	team := r.URL.Query().Get("teamId")
 	teamid, err := strconv.Atoi(team)
 	if err != nil {
-		fmt.Fprintf(w, `
-		{
-			"response": "incorrect format"
-		}
-		`)
+		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
 		return
 	}
 	level := checkPermissionByEmail(user, teamid) // TODO handle error?
@@ -127,6 +112,7 @@ func getPermission(w http.ResponseWriter, r *http.Request) {
 
 // inputs: email of person to set, and the desired permission level, and what team
 func setPermission(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -135,11 +121,7 @@ func setPermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Query().Get("userEmail") == "" && r.URL.Query().Get("teamId") == "" {
-		fmt.Fprintf(w, `
-		{
-			"response": "incorrect format"
-		}
-		`)
+		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
 		return
 	}
 	// get the token's user id
@@ -149,20 +131,12 @@ func setPermission(w http.ResponseWriter, r *http.Request) {
 	level := r.URL.Query().Get("permissionLevel")
 	teamid, err := strconv.Atoi(team)
 	if err != nil {
-		fmt.Fprintf(w, `
-		{
-			"response": "incorrect format"
-		}
-		`)
+		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
 		return
 	}
 	proposedPermission, err := strconv.Atoi(level)
 	if err != nil {
-		fmt.Fprintf(w, `
-		{
-			"response": "incorrect format"
-		}
-		`)
+		fmt.Fprintf(w, `{ "response": "incorrect format" }=`)
 		return
 	}
 
@@ -172,37 +146,21 @@ func setPermission(w http.ResponseWriter, r *http.Request) {
 	// check if user has permission to set permissions
 	// if person to set has a higher permission level than user, error out, or if proposed permission is higher
 	if setterPermission < 2 {
-		fmt.Fprintf(w, `
-		{
-			"response": "Insufficient permission"
-		}
-		`)
+		fmt.Fprintf(w, ` { "response": "Insufficient permission" }`)
 		return
 	} else if userPermisssion >= setterPermission {
-		fmt.Fprintf(w, `
-		{
-			"response": "invalid permission"
-		}
-		`)
+		fmt.Fprintf(w, `{ "response": "invalid permission" }`)
 		return
 	} else if proposedPermission >= setterPermission {
-		fmt.Fprintf(w, `
-		{
-			"response": "Insufficient permission"
-		}
-		`)
+		fmt.Fprintf(w, `{ "response": "Insufficient permission" }`)
 		return
 	}
 	userID := getUserIDByEmail(user)
+
 	// otherwise upsert teampermission
-	db := createDB()
-	defer db.Close()
-	db.Exec("INSERT INTO teampermission(userid, teamid, level) VALUES(?, ?, ?) ON CONFLICT(userid, teamid) DO UPDATE SET level=?", userID, teamid, proposedPermission, proposedPermission)
-	fmt.Fprintf(w, `
-	{
-		"response": "valid"
-	}
-	`)
+	query := UseQueries()
+	query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int64(teamid), Level: int64(proposedPermission)})
+	fmt.Fprintf(w, `{ "response": "valid" }`)
 }
 
 func getTeamMembership(w http.ResponseWriter, r *http.Request) {
@@ -217,11 +175,7 @@ func getTeamMembership(w http.ResponseWriter, r *http.Request) {
 	team := r.URL.Query().Get("teamId")
 	teamId, err := strconv.Atoi(team)
 	if err != nil {
-		fmt.Fprintf(w, `
-		{
-			"response": "incorrect format"
-		}
-		`)
+		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
 		return
 	}
 	level := checkPermissionByID(teamId, userId)
@@ -229,10 +183,7 @@ func getTeamMembership(w http.ResponseWriter, r *http.Request) {
 	// if level is negative, you are not in the team
 	// and do not have permission to see team membership
 	if level < 0 {
-		fmt.Fprintf(w, `
-		{
-			"response": "no permission"
-		}`)
+		fmt.Fprintf(w, `{ "response": "no permission" }`)
 		return
 	}
 
@@ -250,22 +201,17 @@ func getTeamMembership(w http.ResponseWriter, r *http.Request) {
 	db := createDB()
 	defer db.Close()
 
-	memberdto, err := db.Query("SELECT userid, level FROM teampermission WHERE teamid = ?", teamId)
+	query := UseQueries()
+	memberdto, err := query.GetTeamMembership(ctx, int64(teamId))
 	if err != nil {
-		fmt.Fprintf(w, `
-		{
-			"response": "db error"
-		}`)
+		fmt.Fprintf(w, `{ "response": "db error" }`)
 		return
 	}
 	var members []Member
-	for memberdto.Next() {
+	for _, member := range memberdto {
 		var m Member
-		var level int
-		var id string
-		memberdto.Scan(&id, &level)
 
-		switch level {
+		switch member.Level {
 		case 1:
 			m.Role = "Member"
 		case 2:
@@ -276,7 +222,7 @@ func getTeamMembership(w http.ResponseWriter, r *http.Request) {
 			m.Role = "Undefined"
 		}
 
-		usr, err := user.Get(ctx, id)
+		usr, err := user.Get(ctx, member.Userid)
 		if err != nil {
 			fmt.Println("error: invalid user id")
 			continue
@@ -290,10 +236,7 @@ func getTeamMembership(w http.ResponseWriter, r *http.Request) {
 
 	m, err := json.Marshal(members)
 	if err != nil {
-		fmt.Fprintf(w, `
-		{
-			"response": "json error"
-		}`)
+		fmt.Fprintf(w, `{ "response": "json error" }`)
 		return
 	}
 	fmt.Fprintf(w, `

@@ -14,4 +14,4 @@ CREATE TABLE projectpermission(userid TEXT, projectid INTEGER, level INTEGER);
 
 CREATE TABLE team(teamid INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, ownerid TEXT, planid INTEGER);
 
-CREATE TABLE teampermission (userid TEXT, teamid TEXT, level INTEGER, PRIMARY KEY (userid, teamid));
+CREATE TABLE teampermission (userid TEXT NOT NULL, teamid INTEGER NOT NULL, level INTEGER NOT NULL, PRIMARY KEY (userid, teamid));

@@ -64,7 +64,7 @@ type Team struct {
 }
 
 type Teampermission struct {
-	Userid sql.NullString
-	Teamid sql.NullString
-	Level  sql.NullInt64
+	Userid string
+	Teamid int64
+	Level  int64
 }

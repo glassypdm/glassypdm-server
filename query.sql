@@ -20,6 +20,10 @@ RETURNING *;
 SELECT teamid FROM teampermission
 WHERE userid = ?;
 
+-- name: GetTeamMembership :many
+SELECT userid, level FROM teampermission
+WHERE teamid = ?;
+
 -- name: FindUserProjects :many
 SELECT pid, title, name FROM project INNER JOIN team
 WHERE team.teamid = ? AND project.teamid = ?;
