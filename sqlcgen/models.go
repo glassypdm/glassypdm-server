@@ -6,11 +6,12 @@ package sqlcgen
 
 import (
 	"database/sql"
+	"time"
 )
 
 type Block struct {
 	Hash  string
-	S3key sql.NullString
+	S3key string
 }
 
 type Chunk struct {
@@ -22,11 +23,11 @@ type Chunk struct {
 
 type Commit struct {
 	Cid       int64
-	Projectid sql.NullInt64
-	Userid    sql.NullString
-	Comment   sql.NullString
-	Numfiles  sql.NullInt64
-	Timestamp sql.NullTime
+	Projectid int64
+	Userid    string
+	Comment   string
+	Numfiles  int64
+	Timestamp time.Time
 }
 
 type File struct {
@@ -39,28 +40,27 @@ type Filerevision struct {
 	Frid       int64
 	Fid        int64
 	Commitid   int64
-	Numchunks  sql.NullInt64
-	Changetype sql.NullInt64
+	Numchunks  int64
+	Changetype int64
 }
 
 type Project struct {
 	Pid        int64
-	Title      sql.NullString
-	Teamid     sql.NullInt64
-	Basecommit sql.NullInt64
+	Title      string
+	Teamid     int64
+	Basecommit int64
 }
 
 type Projectpermission struct {
-	Userid    sql.NullString
-	Projectid sql.NullInt64
-	Level     sql.NullInt64
+	Userid    string
+	Projectid int64
+	Level     int64
 }
 
 type Team struct {
-	Teamid  int64
-	Name    sql.NullString
-	Ownerid sql.NullString
-	Planid  sql.NullInt64
+	Teamid int64
+	Name   string
+	Planid sql.NullInt64
 }
 
 type Teampermission struct {

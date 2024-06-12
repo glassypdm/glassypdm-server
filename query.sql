@@ -13,7 +13,7 @@ LIMIT 1;
 
 -- name: SetTeamPermission :one
 INSERT INTO teampermission(userid, teamid, level)
-VALUES(?, ?, ?) ON CONFLICT(userid, teamid) DO UPDATE SET level=?
+VALUES(?, ?, ?) ON CONFLICT(userid, teamid) DO UPDATE SET level=excluded.level
 RETURNING *;
 
 -- name: FindUserTeams :many
@@ -55,3 +55,8 @@ WHERE userid = ? LIMIT 1;
 -- name: GetLatestCommit :one
 SELECT MAX(cid) FROM 'commit'
 WHERE projectid = ? LIMIT 1;
+
+-- name: InsertTeam :one
+INSERT INTO team(name)
+VALUES (?)
+RETURNING teamid;

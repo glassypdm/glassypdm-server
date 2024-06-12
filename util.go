@@ -53,10 +53,12 @@ var ddl string
 func UseQueries() *sqlcgen.Queries {
 	ctx := context.Background()
 	db := createDB()
-	defer db.Close()
 
 	_, err := db.ExecContext(ctx, ddl)
 	if err != nil {
+		fmt.Println(ddl)
+		fmt.Printf("err: %v\n", err)
+		fmt.Println("oof db")
 		os.Exit(1)
 	}
 
@@ -103,7 +105,7 @@ func canUserUpload(userId string) bool {
 	}
 
 	// check project permission
-	projectpermissions, err := query.FindProjectPermissions(ctx, sql.NullString{String: userId, Valid: true})
+	projectpermissions, err := query.FindProjectPermissions(ctx, userId)
 	if err != nil {
 		return false
 	}

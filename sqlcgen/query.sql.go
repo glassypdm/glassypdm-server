@@ -7,7 +7,6 @@ package sqlcgen
 
 import (
 	"context"
-	"database/sql"
 )
 
 const checkProjectName = `-- name: CheckProjectName :one
@@ -16,8 +15,8 @@ WHERE teamid = ? and title=? LIMIT 1
 `
 
 type CheckProjectNameParams struct {
-	Teamid sql.NullInt64
-	Title  sql.NullString
+	Teamid int64
+	Title  string
 }
 
 func (q *Queries) CheckProjectName(ctx context.Context, arg CheckProjectNameParams) (int64, error) {
@@ -32,15 +31,15 @@ SELECT level FROM projectpermission
 WHERE userid = ?
 `
 
-func (q *Queries) FindProjectPermissions(ctx context.Context, userid sql.NullString) ([]sql.NullInt64, error) {
+func (q *Queries) FindProjectPermissions(ctx context.Context, userid string) ([]int64, error) {
 	rows, err := q.db.QueryContext(ctx, findProjectPermissions, userid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []sql.NullInt64
+	var items []int64
 	for rows.Next() {
-		var level sql.NullInt64
+		var level int64
 		if err := rows.Scan(&level); err != nil {
 			return nil, err
 		}
@@ -90,7 +89,7 @@ WHERE tp.userid = ? AND tp.level >= 2
 
 type FindUserManagedTeamsRow struct {
 	Teamid int64
-	Name   sql.NullString
+	Name   string
 }
 
 func (q *Queries) FindUserManagedTeams(ctx context.Context, userid string) ([]FindUserManagedTeamsRow, error) {
@@ -123,13 +122,13 @@ WHERE team.teamid = ? AND project.teamid = ?
 
 type FindUserProjectsParams struct {
 	Teamid   int64
-	Teamid_2 sql.NullInt64
+	Teamid_2 int64
 }
 
 type FindUserProjectsRow struct {
 	Pid   int64
-	Title sql.NullString
-	Name  sql.NullString
+	Title string
+	Name  string
 }
 
 func (q *Queries) FindUserProjects(ctx context.Context, arg FindUserProjectsParams) ([]FindUserProjectsRow, error) {
@@ -188,7 +187,7 @@ SELECT MAX(cid) FROM 'commit'
 WHERE projectid = ? LIMIT 1
 `
 
-func (q *Queries) GetLatestCommit(ctx context.Context, projectid sql.NullInt64) (interface{}, error) {
+func (q *Queries) GetLatestCommit(ctx context.Context, projectid int64) (interface{}, error) {
 	row := q.db.QueryRowContext(ctx, getLatestCommit, projectid)
 	var max interface{}
 	err := row.Scan(&max)
@@ -200,9 +199,9 @@ SELECT title FROM project
 WHERE pid = ? LIMIT 1
 `
 
-func (q *Queries) GetProjectInfo(ctx context.Context, pid int64) (sql.NullString, error) {
+func (q *Queries) GetProjectInfo(ctx context.Context, pid int64) (string, error) {
 	row := q.db.QueryRowContext(ctx, getProjectInfo, pid)
-	var title sql.NullString
+	var title string
 	err := row.Scan(&title)
 	return title, err
 }
@@ -213,13 +212,13 @@ WHERE userid = ? AND projectid = ? LIMIT 1
 `
 
 type GetProjectPermissionParams struct {
-	Userid    sql.NullString
-	Projectid sql.NullInt64
+	Userid    string
+	Projectid int64
 }
 
-func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermissionParams) (sql.NullInt64, error) {
+func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermissionParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getProjectPermission, arg.Userid, arg.Projectid)
-	var level sql.NullInt64
+	var level int64
 	err := row.Scan(&level)
 	return level, err
 }
@@ -293,8 +292,8 @@ VALUES (?, ?)
 `
 
 type InsertProjectParams struct {
-	Title  sql.NullString
-	Teamid sql.NullInt64
+	Title  string
+	Teamid int64
 }
 
 func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) error {
@@ -302,9 +301,22 @@ func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) er
 	return err
 }
 
+const insertTeam = `-- name: InsertTeam :one
+INSERT INTO team(name)
+VALUES (?)
+RETURNING teamid
+`
+
+func (q *Queries) InsertTeam(ctx context.Context, name string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertTeam, name)
+	var teamid int64
+	err := row.Scan(&teamid)
+	return teamid, err
+}
+
 const setTeamPermission = `-- name: SetTeamPermission :one
 INSERT INTO teampermission(userid, teamid, level)
-VALUES(?, ?, ?) ON CONFLICT(userid, teamid) DO UPDATE SET level=?
+VALUES(?, ?, ?) ON CONFLICT(userid, teamid) DO UPDATE SET level=excluded.level
 RETURNING userid, teamid, level
 `
 

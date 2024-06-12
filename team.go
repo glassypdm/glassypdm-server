@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
@@ -19,24 +20,48 @@ type Member struct {
 	Role    string `json:"role"`
 }
 
+type TeamCreationRequest struct {
+	Name string `json:"name"`
+}
+
 func createTeam(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"access": "unauthorized"}`))
 		return
 	}
-	_ = claims // temp
 
 	if os.Getenv("OPEN_TEAMS") == "0" {
 		fmt.Fprintf(w, `{ "status": "disabled" }`)
 		return
 	}
+	query := UseQueries()
 
-	// TODO check for unique team name
+	var request TeamCreationRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "json bad" }`)
+		return
+	}
 
-	// TODO create team entry
+	// create team entry and add user as owner
+	id, err := query.InsertTeam(ctx, request.Name)
+	if err != nil {
+		if strings.Contains(strings.Split(err.Error(), "SQLite error: ")[1], "UNIQUE constraint failed") {
+			fmt.Fprintf(w, `{ "status": "error", "message": "team name exists already" }`)
+		} else {
+			fmt.Fprintf(w, `{ "status": "error", "message": "db error" }`)
+		}
+		return
+	}
 
+	_, err = query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Teamid: id, Userid: claims.Subject, Level: 3})
+	fmt.Println(id)
+	fmt.Println(err)
+
+	fmt.Fprintf(w, `{ "status": "success" }`)
 }
 
 // output meaning
@@ -101,11 +126,11 @@ func getPermission(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
 		return
 	}
-	level := checkPermissionByEmail(user, teamid) // TODO handle error?
+	level := checkPermissionByEmail(user, teamid)
 	fmt.Fprintf(w, `
 	{
 		"response": "ok",
-		"permission": "%d"
+		"permission": %d
 	}
 	`, level)
 }

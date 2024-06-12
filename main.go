@@ -56,6 +56,7 @@ func main() {
 		r.Get("/project/new", getNewFiles)
 		r.Get("/project/commit", getLatestCommit)
 		r.Get("/project/file", getLatestRevision)
+		r.Post("/team", createTeam)
 	})
 
 	port := os.Getenv("PORT")
