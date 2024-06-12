@@ -3,6 +3,6 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY *.go ./
-RUN CGO_ENABLED=0 GOOS=linux go build -o /daijincad-server
-CMD ["/daijincad-server"]
+RUN CGO_ENABLED=0 GOOS=linux go build -o /glassypdm-server
+CMD ["/glassypdm-server"]
 #br
