@@ -72,10 +72,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		fmt.Println("error!") // TODO print the error
-		fmt.Fprintf(w, `
-		{
-			"status": "database went bonk"
-		}`)
+		fmt.Fprintf(w, `{ "status": "database went bonk" }`)
 		return
 	}
 	var teamids []int
@@ -90,6 +87,18 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println(teamids)
 	defer teams.Close()
+
+	if len(teamids) == 0 {
+		fmt.Println("no teams found")
+		fmt.Fprintf(w, `
+		{
+			"user_id": "%s",
+			"projects": %s,
+			"managed_teams": %s
+		}
+		`, user, "[]", "[]")
+		return
+	}
 
 	// get projects for all user's teams
 	var projects []Project
