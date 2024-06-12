@@ -130,6 +130,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 		managers = append(managers, t)
 	}
 	b, err := json.Marshal(projects)
+	_ = b
 	bt, err := json.Marshal(managers)
 	fmt.Fprintf(w, `
 	{
@@ -137,7 +138,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 		"projects": %s,
 		"managed_teams": %s
 	}
-	`, user, string(b), string(bt))
+	`, user, "[]", string(bt))
 }
 
 func createProject(w http.ResponseWriter, r *http.Request) {
