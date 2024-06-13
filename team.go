@@ -11,6 +11,7 @@ import (
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
+	"github.com/go-chi/chi/v5"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 )
 
@@ -188,91 +189,7 @@ func setPermission(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{ "response": "valid" }`)
 }
 
-func getTeamMembership(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"access": "unauthorized"}`))
-		return
-	}
-	userId := claims.Subject
-	team := r.URL.Query().Get("teamId")
-	teamId, err := strconv.Atoi(team)
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
-		return
-	}
-	level := checkPermissionByID(teamId, userId)
-	levelStr := ""
-	// if level is negative, you are not in the team
-	// and do not have permission to see team membership
-	if level < 0 {
-		fmt.Fprintf(w, `{ "response": "no permission" }`)
-		return
-	}
-
-	switch level {
-	case 1:
-		levelStr = "Member"
-	case 2:
-		levelStr = "Manager"
-	case 3:
-		levelStr = "Owner"
-	default:
-		levelStr = "Undefined"
-	}
-
-	db := createDB()
-	defer db.Close()
-
-	query := UseQueries()
-	memberdto, err := query.GetTeamMembership(ctx, int64(teamId))
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "db error" }`)
-		return
-	}
-	var members []Member
-	for _, member := range memberdto {
-		var m Member
-
-		switch member.Level {
-		case 1:
-			m.Role = "Member"
-		case 2:
-			m.Role = "Manager"
-		case 3:
-			m.Role = "Owner"
-		default:
-			m.Role = "Undefined"
-		}
-
-		usr, err := user.Get(ctx, member.Userid)
-		if err != nil {
-			fmt.Println("error: invalid user id")
-			continue
-		}
-		m.Name = *usr.FirstName + " " + *usr.LastName
-		// we don't send the actual email address
-		// for slightly better security
-		m.EmailID = *usr.PrimaryEmailAddressID
-		members = append(members, m)
-	}
-
-	m, err := json.Marshal(members)
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "json error" }`)
-		return
-	}
-	fmt.Fprintf(w, `
-	{
-		"response": "ok",
-		"role":"%s",
-		"members": %s
-	}`, levelStr, string(m))
-}
-
-func getTeam(w http.ResponseWriter, r *http.Request) {
+func getTeamForUser(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
@@ -299,4 +216,93 @@ func getTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprintf(w, `{ "open": %v, "teams": %s}`, IsServerOpen(), (output_str))
+}
+
+func getTeamInformation(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	userId := claims.Subject
+	teamIdStr := chi.URLParam(r, "teamId")
+	teamId, err := strconv.Atoi(teamIdStr)
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "incorrect format" }`)
+		return
+	}
+
+	query := UseQueries()
+	// check if team exists
+	_, err = query.GetTeamName(ctx, int64(teamId))
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "team DNE" }`)
+		return
+	}
+
+	level := checkPermissionByID(teamId, userId)
+	levelStr := ""
+	// if level is negative, you are not in the team
+	// and do not have permission to see team membership
+	if level < 0 {
+		fmt.Fprintf(w, `{ "status": "no permission" }`)
+		return
+	}
+
+	switch level {
+	case 1:
+		levelStr = "Member"
+	case 2:
+		levelStr = "Manager"
+	case 3:
+		levelStr = "Owner"
+	default:
+		levelStr = "Undefined"
+	}
+
+	memberdto, err := query.GetTeamMembership(ctx, int64(teamId))
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error" }`)
+		return
+	}
+	var members []Member
+	for _, member := range memberdto {
+		var m Member
+
+		switch member.Level {
+		case 1:
+			m.Role = "Member"
+		case 2:
+			m.Role = "Manager"
+		case 3:
+			m.Role = "Owner"
+		default:
+			m.Role = "Undefined"
+		}
+
+		usr, err := user.Get(ctx, member.Userid)
+		if err != nil {
+			fmt.Println("status: invalid user id")
+			continue
+		}
+		m.Name = *usr.FirstName + " " + *usr.LastName
+		// we don't send the actual email address
+		// for slightly better security
+		m.EmailID = *usr.PrimaryEmailAddressID
+		members = append(members, m)
+	}
+
+	m, err := json.Marshal(members)
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "json error" }`)
+		return
+	}
+	fmt.Fprintf(w, `
+	{
+		"status": "ok",
+		"role":"%s",
+		"members": %s
+	}`, levelStr, string(m))
 }

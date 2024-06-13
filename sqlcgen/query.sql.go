@@ -261,6 +261,18 @@ func (q *Queries) GetTeamMembership(ctx context.Context, teamid int64) ([]GetTea
 	return items, nil
 }
 
+const getTeamName = `-- name: GetTeamName :one
+SELECT name FROM team
+WHERE teamid = ? LIMIT 1
+`
+
+func (q *Queries) GetTeamName(ctx context.Context, teamid int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, getTeamName, teamid)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const getTeamPermission = `-- name: GetTeamPermission :one
 SELECT level FROM teampermission
 WHERE teamid = ? AND userid = ?
