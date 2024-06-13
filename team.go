@@ -236,7 +236,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 
 	query := UseQueries()
 	// check if team exists
-	_, err = query.GetTeamName(ctx, int64(teamId))
+	name, err := query.GetTeamName(ctx, int64(teamId))
 	if err != nil {
 		fmt.Fprintf(w, `{ "status": "team DNE" }`)
 		return
@@ -302,7 +302,8 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `
 	{
 		"status": "ok",
+		"teamName": "%s",
 		"role":"%s",
 		"members": %s
-	}`, levelStr, string(m))
+	}`, name, levelStr, string(m))
 }
