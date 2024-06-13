@@ -136,6 +136,12 @@ func getPermission(w http.ResponseWriter, r *http.Request) {
 	`, level)
 }
 
+type PermissionRequest struct {
+	Email  string `json:"email"`
+	TeamId int    `json:"teamId"`
+	Level  int    `json:"level"`
+}
+
 // inputs: email of person to set, and the desired permission level, and what team
 func setPermission(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
@@ -146,47 +152,39 @@ func setPermission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Query().Get("userEmail") == "" && r.URL.Query().Get("teamId") == "" {
-		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
-		return
-	}
 	// get the token's user id
 	setterId := claims.Subject
-	user := r.URL.Query().Get("userEmail") // the user to set a permission for
-	team := r.URL.Query().Get("teamId")
-	level := r.URL.Query().Get("permissionLevel")
-	teamid, err := strconv.Atoi(team)
+	var req PermissionRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
+		fmt.Fprintf(w, `{ "status": "incorrect format" }`)
 		return
 	}
-	proposedPermission, err := strconv.Atoi(level)
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "incorrect format" }=`)
-		return
-	}
+	user := req.Email // the user to set a permission for
+	teamId := req.TeamId
+	proposedPermission := req.Level
 
-	setterPermission := checkPermissionByID(teamid, setterId)
-	userPermisssion := checkPermissionByEmail(user, teamid)
+	setterPermission := checkPermissionByID(teamId, setterId)
+	userPermisssion := checkPermissionByEmail(user, teamId)
 
 	// check if user has permission to set permissions
 	// if person to set has a higher permission level than user, error out, or if proposed permission is higher
 	if setterPermission < 2 {
-		fmt.Fprintf(w, ` { "response": "Insufficient permission" }`)
+		fmt.Fprintf(w, ` { "status": "Insufficient permission" }`)
 		return
 	} else if userPermisssion >= setterPermission {
-		fmt.Fprintf(w, `{ "response": "invalid permission" }`)
+		fmt.Fprintf(w, `{ "status": "invalid permission" }`)
 		return
 	} else if proposedPermission >= setterPermission {
-		fmt.Fprintf(w, `{ "response": "Insufficient permission" }`)
+		fmt.Fprintf(w, `{ "status": "Insufficient permission" }`)
 		return
 	}
 	userID := getUserIDByEmail(user)
 
 	// otherwise upsert teampermission
 	query := UseQueries()
-	query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int64(teamid), Level: int64(proposedPermission)})
-	fmt.Fprintf(w, `{ "response": "valid" }`)
+	query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int64(teamId), Level: int64(proposedPermission)})
+	fmt.Fprintf(w, `{ "status": "valid" }`)
 }
 
 func getTeamForUser(w http.ResponseWriter, r *http.Request) {
