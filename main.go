@@ -46,7 +46,6 @@ func main() {
 	// protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(clerkhttp.WithHeaderAuthorization())
-		r.Get("/hehez", protectedRoute)
 		r.Post("/ingest", handleUpload)
 		r.Get("/permission", getPermission)
 		r.Post("/permission", setPermission)
@@ -57,20 +56,11 @@ func main() {
 		r.Get("/project/commit", getLatestCommit)
 		r.Get("/project/file", getLatestRevision)
 		r.Post("/team", createTeam)
+		r.Get("/team", getTeam)
 	})
 
 	port := os.Getenv("PORT")
 
 	fmt.Println("Listening on localhost:" + port)
 	http.ListenAndServe(":"+port, r)
-}
-
-func protectedRoute(w http.ResponseWriter, r *http.Request) {
-	claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"access": "unauthorized"}`))
-		return
-	}
-	fmt.Fprintf(w, `{"user_id": "%s"}`, claims.Subject)
 }

@@ -271,3 +271,32 @@ func getTeamMembership(w http.ResponseWriter, r *http.Request) {
 		"members": %s
 	}`, levelStr, string(m))
 }
+
+func getTeam(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+
+	queries := UseQueries()
+	teams, err := queries.FindUserTeams(ctx, claims.Subject)
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error" }`)
+		return
+	}
+
+	fmt.Println(teams)
+	var output []Team
+
+	for _, row := range teams {
+		output = append(output, Team{Id: int(row.Teamid), Name: row.Name})
+	}
+	output_str, err := json.Marshal(output)
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(w, `{ "open": %v, "teams": %s}`, IsServerOpen(), (output_str))
+}

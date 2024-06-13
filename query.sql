@@ -17,8 +17,8 @@ VALUES(?, ?, ?) ON CONFLICT(userid, teamid) DO UPDATE SET level=excluded.level
 RETURNING *;
 
 -- name: FindUserTeams :many
-SELECT teamid FROM teampermission
-WHERE userid = ?;
+SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission AS tp ON team.teamid = tp.teamid
+WHERE tp.userid = ?;
 
 -- name: GetTeamMembership :many
 SELECT userid, level FROM teampermission

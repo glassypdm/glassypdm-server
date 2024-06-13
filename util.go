@@ -14,6 +14,13 @@ import (
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
+func IsServerOpen() bool {
+	if os.Getenv("OPEN_TEAMS") == "1" {
+		return true
+	} else {
+		return false
+	}
+}
 func getVersion(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("brr")
 	data := struct {

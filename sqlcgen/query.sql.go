@@ -155,23 +155,28 @@ func (q *Queries) FindUserProjects(ctx context.Context, arg FindUserProjectsPara
 }
 
 const findUserTeams = `-- name: FindUserTeams :many
-SELECT teamid FROM teampermission
-WHERE userid = ?
+SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission AS tp ON team.teamid = tp.teamid
+WHERE tp.userid = ?
 `
 
-func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]int64, error) {
+type FindUserTeamsRow struct {
+	Teamid int64
+	Name   string
+}
+
+func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]FindUserTeamsRow, error) {
 	rows, err := q.db.QueryContext(ctx, findUserTeams, userid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []int64
+	var items []FindUserTeamsRow
 	for rows.Next() {
-		var teamid int64
-		if err := rows.Scan(&teamid); err != nil {
+		var i FindUserTeamsRow
+		if err := rows.Scan(&i.Teamid, &i.Name); err != nil {
 			return nil, err
 		}
-		items = append(items, teamid)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
