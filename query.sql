@@ -19,6 +19,11 @@ INSERT INTO teampermission(userid, teamid, level)
 VALUES(?, ?, ?) ON CONFLICT(userid, teamid) DO UPDATE SET level=excluded.level
 RETURNING *;
 
+-- name: DeleteTeamPermission :one
+DELETE FROM teampermission
+WHERE userid = ?
+RETURNING *;
+
 -- name: FindUserTeams :many
 SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission AS tp ON team.teamid = tp.teamid
 WHERE tp.userid = ?;

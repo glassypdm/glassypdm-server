@@ -26,6 +26,19 @@ func (q *Queries) CheckProjectName(ctx context.Context, arg CheckProjectNamePara
 	return count, err
 }
 
+const deleteTeamPermission = `-- name: DeleteTeamPermission :one
+DELETE FROM teampermission
+WHERE userid = ?
+RETURNING userid, teamid, level
+`
+
+func (q *Queries) DeleteTeamPermission(ctx context.Context, userid string) (Teampermission, error) {
+	row := q.db.QueryRowContext(ctx, deleteTeamPermission, userid)
+	var i Teampermission
+	err := row.Scan(&i.Userid, &i.Teamid, &i.Level)
+	return i, err
+}
+
 const findProjectPermissions = `-- name: FindProjectPermissions :many
 SELECT level FROM projectpermission
 WHERE userid = ?

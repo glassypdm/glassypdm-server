@@ -182,8 +182,13 @@ func setPermission(w http.ResponseWriter, r *http.Request) {
 	userID := getUserIDByEmail(user)
 
 	// otherwise upsert teampermission
+	// TODO handle errors
 	query := UseQueries()
-	query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int64(teamId), Level: int64(proposedPermission)})
+	if proposedPermission != -4 {
+		query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int64(teamId), Level: int64(proposedPermission)})
+	} else {
+		query.DeleteTeamPermission(ctx, userID)
+	}
 	fmt.Fprintf(w, `{ "status": "valid" }`)
 }
 
