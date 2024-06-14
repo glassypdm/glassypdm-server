@@ -61,13 +61,16 @@ func UseQueries() *sqlcgen.Queries {
 	ctx := context.Background()
 	db := createDB()
 
-	_, err := db.ExecContext(ctx, ddl)
-	if err != nil {
-		//fmt.Println(ddl)
-		fmt.Printf("err: %v\n", err)
-		fmt.Println("oof db")
-		os.Exit(1)
-	}
+	// TODO figure out the below issue it randomly popped up 240613
+	/*
+		_, err := db.ExecContext(ctx, ddl)
+		if err != nil {
+			//fmt.Println(ddl)
+			fmt.Printf("err: %v\n", err)
+			fmt.Println("oof db")
+			os.Exit(1)
+		}
+	*/
 
 	queries := sqlcgen.New(db)
 	return queries
