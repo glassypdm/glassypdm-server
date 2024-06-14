@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -57,88 +58,47 @@ type ProjectCreationRequest struct {
 	TeamID int    `json:"teamId"`
 }
 
-// TODO is putting user id in query safe?
 func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Query().Get("user") == "" {
-		// TODO handle error
-	}
-
-	user := r.URL.Query().Get("user")
-	db := createDB()
-	defer db.Close()
-
-	// get teams of user
-	teams, err := db.Query("SELECT teamid FROM teampermission WHERE userid = ? ", user)
-
-	if err != nil {
-		fmt.Println("error!") // TODO print the error
-		fmt.Fprintf(w, `{ "status": "database went bonk" }`)
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
 		return
 	}
-	var teamids []int
-	for teams.Next() {
-		var teamid = -1
-		teams.Scan(&teamid)
-		if teamid == -1 {
-			fmt.Println("no teams! this branch is kinda dead and probably doesnt get reached")
-			break
-		}
-		teamids = append(teamids, teamid)
-	}
-	fmt.Println(teamids)
-	defer teams.Close()
+	user := claims.Subject
 
-	if len(teamids) == 0 {
-		fmt.Println("no teams found")
-		fmt.Fprintf(w, `
-		{
-			"user_id": "%s",
-			"projects": %s,
-			"managed_teams": %s
-		}
-		`, user, "[]", "[]")
-		return
-	}
+	queries := UseQueries()
 
-	// get projects for all user's teams
-	var projects []Project
-	for i := range teamids {
-		projectdto, err := db.Query("SELECT pid, title, name FROM project INNER JOIN team WHERE team.teamid = ? AND project.teamid = ?", i, i)
+	// get user's projects
+	teams, err := queries.FindUserTeams(ctx, user)
+	_ = err
+	projects := []Project{}
+	for _, team := range teams {
+		TeamProjects, err := queries.FindUserProjects(ctx, team.Teamid)
 		if err != nil {
-			fmt.Println("error!") // TODO print error
-			fmt.Fprintf(w, `
-			{
-				"status": "database went bonk"
-			}`)
-			return
+			fmt.Println(err)
 		}
-		for projectdto.Next() {
-			var p Project
-			projectdto.Scan(&p.Id, &p.Name, &p.Team)
-
-			projects = append(projects, p)
+		for _, tp := range TeamProjects {
+			projects = append(projects, Project{Id: int(tp.Pid), Name: tp.Title, Team: tp.Name})
 		}
 	}
 
-	// get teams where user is manager
-	var managers []Team
-	teamdto, err := db.Query("SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission as tp WHERE tp.userid = ? AND tp.level >= 2", user)
-
-	for teamdto.Next() {
-		var t Team
-		teamdto.Scan(&t.Id, &t.Name)
-		managers = append(managers, t)
+	// get user's managed teams
+	managedTeams, _ := queries.FindUserManagedTeams(ctx, user)
+	managed := []Team{}
+	for _, team := range managedTeams {
+		managed = append(managed, Team{Id: int(team.Teamid), Name: team.Name})
 	}
-	b, err := json.Marshal(projects)
-	_ = b
-	bt, err := json.Marshal(managers)
+	projectsJson, _ := json.Marshal(projects)
+	managedJson, _ := json.Marshal(managed)
 	fmt.Fprintf(w, `
 	{
 		"user_id": "%s",
 		"projects": %s,
 		"managed_teams": %s
 	}
-	`, user, "[]", string(bt))
+	`, user, string(projectsJson), string(managedJson))
 }
 
 func createProject(w http.ResponseWriter, r *http.Request) {

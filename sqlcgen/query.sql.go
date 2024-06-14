@@ -96,7 +96,7 @@ func (q *Queries) FindTeamPermissions(ctx context.Context, userid string) ([]int
 }
 
 const findUserManagedTeams = `-- name: FindUserManagedTeams :many
-SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission as tp
+SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission as tp ON team.teamid = tp.teamid
 WHERE tp.userid = ? AND tp.level >= 2
 `
 
@@ -129,14 +129,9 @@ func (q *Queries) FindUserManagedTeams(ctx context.Context, userid string) ([]Fi
 }
 
 const findUserProjects = `-- name: FindUserProjects :many
-SELECT pid, title, name FROM project INNER JOIN team
-WHERE team.teamid = ? AND project.teamid = ?
+SELECT pid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid
+WHERE project.teamid = ?
 `
-
-type FindUserProjectsParams struct {
-	Teamid   int64
-	Teamid_2 int64
-}
 
 type FindUserProjectsRow struct {
 	Pid   int64
@@ -144,8 +139,8 @@ type FindUserProjectsRow struct {
 	Name  string
 }
 
-func (q *Queries) FindUserProjects(ctx context.Context, arg FindUserProjectsParams) ([]FindUserProjectsRow, error) {
-	rows, err := q.db.QueryContext(ctx, findUserProjects, arg.Teamid, arg.Teamid_2)
+func (q *Queries) FindUserProjects(ctx context.Context, teamid int64) ([]FindUserProjectsRow, error) {
+	rows, err := q.db.QueryContext(ctx, findUserProjects, teamid)
 	if err != nil {
 		return nil, err
 	}

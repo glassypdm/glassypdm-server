@@ -33,11 +33,11 @@ SELECT userid, level FROM teampermission
 WHERE teamid = ?;
 
 -- name: FindUserProjects :many
-SELECT pid, title, name FROM project INNER JOIN team
-WHERE team.teamid = ? AND project.teamid = ?;
+SELECT pid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid
+WHERE project.teamid = ?;
 
 -- name: FindUserManagedTeams :many
-SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission as tp
+SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission as tp ON team.teamid = tp.teamid
 WHERE tp.userid = ? AND tp.level >= 2;
 
 -- name: CheckProjectName :one

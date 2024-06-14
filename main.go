@@ -40,7 +40,6 @@ func main() {
 	})
 	r.Get("/version", getVersion)
 	r.Get("/daijin-config", getConfig)
-	r.Get("/projects", getProjectsForUser)
 	r.Get("/project", getProjectInfo)
 
 	// protected routes
@@ -51,6 +50,7 @@ func main() {
 		r.Post("/permission", setPermission)
 		r.Post("/commit", commit)
 		r.Post("/project", createProject)
+		r.Get("/project/user", getProjectsForUser)
 		r.Get("/project/new", getNewFiles)
 		r.Get("/project/commit", getLatestCommit)
 		r.Get("/project/file", getLatestRevision)

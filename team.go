@@ -143,6 +143,7 @@ type PermissionRequest struct {
 }
 
 // inputs: email of person to set, and the desired permission level, and what team
+// TODO: if setting a new owner, demote the old owner to manager
 func setPermission(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -157,6 +158,7 @@ func setPermission(w http.ResponseWriter, r *http.Request) {
 	var req PermissionRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
+		fmt.Println(err)
 		fmt.Fprintf(w, `{ "status": "incorrect format" }`)
 		return
 	}
@@ -185,9 +187,15 @@ func setPermission(w http.ResponseWriter, r *http.Request) {
 	// TODO handle errors
 	query := UseQueries()
 	if proposedPermission != -4 {
-		query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int64(teamId), Level: int64(proposedPermission)})
+		_, err = query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int64(teamId), Level: int64(proposedPermission)})
+
 	} else {
-		query.DeleteTeamPermission(ctx, userID)
+		_, err = query.DeleteTeamPermission(ctx, userID)
+	}
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db" }`)
+		fmt.Println(err)
+		return
 	}
 	fmt.Fprintf(w, `{ "status": "valid" }`)
 }
