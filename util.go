@@ -63,7 +63,7 @@ func UseQueries() *sqlcgen.Queries {
 
 	_, err := db.ExecContext(ctx, ddl)
 	if err != nil {
-		fmt.Println(ddl)
+		//fmt.Println(ddl)
 		fmt.Printf("err: %v\n", err)
 		fmt.Println("oof db")
 		os.Exit(1)
