@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/clerk/clerk-sdk-go/v2"
+	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 )
 
 type Project struct {
@@ -102,6 +103,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func createProject(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -109,51 +111,45 @@ func createProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db := createDB()
-	defer db.Close()
+	query := UseQueries()
 
 	var request ProjectCreationRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
-	_ = err // TODO
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "json error" }`)
+		return
+	}
 
 	// check permission level in team
 	fmt.Println(request)
-	permission, err := db.Query("SELECT level FROM teampermission WHERE userid = ? and teamid = ?", claims.Subject, request.TeamID)
-	var level = -1
-	for permission.Next() {
-		permission.Scan(&level)
+	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(request.TeamID), Userid: claims.Subject})
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error" }`)
+		return
 	}
-	if level < 1 {
-		fmt.Fprintf(w, `
-		{
-			"status": "no permission"
-		}`)
+	level := int(permission)
+	if level < 2 {
+		fmt.Fprintf(w, `{ "status": "no permission" }`)
 		return
 	}
 
 	// check for unique name
-	var count = 0
-	hehe, err := db.Query("SELECT COUNT(*) FROM project WHERE teamid = ? and title=?", request.TeamID, request.Name)
-	for hehe.Next() {
-		hehe.Scan(&count)
-	}
-	if count > 0 {
-		fmt.Fprintf(w, `
-		{
-			"status": "project name exists"
-		}`)
+	count, err := query.CheckProjectName(ctx, sqlcgen.CheckProjectNameParams{Teamid: int64(request.TeamID), Title: request.Name})
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error" }`)
+		return
+	} else if count > 0 {
+		fmt.Fprintf(w, `{ "status": "project name exists" }`)
 		return
 	}
 
-	// TODO do we need to do something w/ base commit?
-	db.Exec("INSERT INTO project(title, teamid) VALUES (?, ?)", request.Name, request.TeamID)
-
-	fmt.Fprintf(w,
-		`
-	{
-		"status": "success"
+	err = query.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int64(request.TeamID), Title: request.Name})
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error" }`)
+		return
 	}
-	`)
+
+	fmt.Fprintf(w, `{ "status": "success" }`)
 }
 
 func getProjectInfo(w http.ResponseWriter, r *http.Request) {

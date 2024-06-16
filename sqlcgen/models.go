@@ -27,6 +27,7 @@ type Commit struct {
 	Userid    string
 	Comment   string
 	Numfiles  int64
+	Cno       sql.NullInt64
 	Timestamp time.Time
 }
 
@@ -41,14 +42,14 @@ type Filerevision struct {
 	Fid        int64
 	Commitid   int64
 	Numchunks  int64
+	Frno       sql.NullInt64
 	Changetype int64
 }
 
 type Project struct {
-	Pid        int64
-	Title      string
-	Teamid     int64
-	Basecommit int64
+	Pid    int64
+	Title  string
+	Teamid int64
 }
 
 type Projectpermission struct {
