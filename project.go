@@ -18,7 +18,6 @@ type Project struct {
 	Team string `json:"team"`
 }
 
-// TODO move this to team.go?
 type Team struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
@@ -153,23 +152,27 @@ func createProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func getProjectInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	_, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
 	if r.URL.Query().Get("pid") == "" {
-		// TODO handle error
+		fmt.Fprintf(w, `{ "status": "no pid supplied" }`)
+		return
 	}
 
 	pid, err := strconv.Atoi(r.URL.Query().Get("pid"))
 	_ = err
 
-	db := createDB()
-	defer db.Close()
-
-	rows, err := db.Query("SELECT title FROM project WHERE pid = ?", pid)
-
-	var projectname = ""
-	for rows.Next() {
-		rows.Scan(&projectname)
+	query := UseQueries()
+	projectname, err := query.GetProjectInfo(ctx, int64(pid))
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+		return
 	}
-
 	fmt.Fprintf(w, `
 	{
 		"title": "%s"

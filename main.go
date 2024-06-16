@@ -40,7 +40,6 @@ func main() {
 	})
 	r.Get("/version", getVersion)
 	r.Get("/daijin-config", getConfig)
-	//r.Get("/project", getProjectInfo)
 
 	// protected routes
 	r.Group(func(r chi.Router) {
@@ -50,6 +49,7 @@ func main() {
 		r.Post("/permission", setPermission)
 		r.Post("/commit", commit)
 		r.Post("/project", createProject)
+		r.Get("/project/info", getProjectInfo)
 		r.Get("/project/user", getProjectsForUser)
 		r.Get("/project/new", getNewFiles)
 		r.Get("/project/commit", getLatestCommit)
