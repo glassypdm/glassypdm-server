@@ -311,9 +311,35 @@ func (q *Queries) GetUploadPermission(ctx context.Context, userid string) (int64
 	return count, err
 }
 
-const insertProject = `-- name: InsertProject :exec
+const insertCommit = `-- name: InsertCommit :one
+INSERT INTO 'commit'(projectid, userid, comment, numfiles)
+VALUES (?, ?, ?, ?)
+RETURNING cid
+`
+
+type InsertCommitParams struct {
+	Projectid int64
+	Userid    string
+	Comment   string
+	Numfiles  int64
+}
+
+func (q *Queries) InsertCommit(ctx context.Context, arg InsertCommitParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertCommit,
+		arg.Projectid,
+		arg.Userid,
+		arg.Comment,
+		arg.Numfiles,
+	)
+	var cid int64
+	err := row.Scan(&cid)
+	return cid, err
+}
+
+const insertProject = `-- name: InsertProject :one
 INSERT INTO project(title, teamid)
 VALUES (?, ?)
+RETURNING pid
 `
 
 type InsertProjectParams struct {
@@ -321,9 +347,11 @@ type InsertProjectParams struct {
 	Teamid int64
 }
 
-func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) error {
-	_, err := q.db.ExecContext(ctx, insertProject, arg.Title, arg.Teamid)
-	return err
+func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertProject, arg.Title, arg.Teamid)
+	var pid int64
+	err := row.Scan(&pid)
+	return pid, err
 }
 
 const insertTeam = `-- name: InsertTeam :one

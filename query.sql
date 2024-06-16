@@ -44,9 +44,10 @@ WHERE tp.userid = ? AND tp.level >= 2;
 SELECT COUNT(*) FROM project
 WHERE teamid = ? and title=? LIMIT 1;
 
--- name: InsertProject :exec
+-- name: InsertProject :one
 INSERT INTO project(title, teamid)
-VALUES (?, ?);
+VALUES (?, ?)
+RETURNING pid;
 
 -- name: GetProjectInfo :one
 SELECT title FROM project
@@ -68,3 +69,8 @@ WHERE projectid = ? LIMIT 1;
 INSERT INTO team(name)
 VALUES (?)
 RETURNING teamid;
+
+-- name: InsertCommit :one
+INSERT INTO 'commit'(projectid, userid, comment, numfiles)
+VALUES (?, ?, ?, ?)
+RETURNING cid;

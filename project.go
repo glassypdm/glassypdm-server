@@ -142,12 +142,16 @@ func createProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = query.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int64(request.TeamID), Title: request.Name})
+	pid, err := query.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int64(request.TeamID), Title: request.Name})
 	if err != nil {
 		fmt.Fprintf(w, `{ "status": "db error" }`)
 		return
 	}
-
+	_, err = query.InsertCommit(ctx, sqlcgen.InsertCommitParams{Projectid: pid, Userid: claims.Subject, Comment: "Initial commit", Numfiles: 0})
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error" }`)
+		return
+	}
 	fmt.Fprintf(w, `{ "status": "success" }`)
 }
 
