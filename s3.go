@@ -29,7 +29,7 @@ func generateS3Client() (*minio.Client, error) {
 
 // multipart
 // chunk + hash
-func handleUpload(w http.ResponseWriter, r *http.Request) {
+func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)

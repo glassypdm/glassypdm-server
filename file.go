@@ -10,7 +10,7 @@ import (
 // TODO
 // body: filepath, project id
 // returns commit # and hash list
-func getLatestRevision(w http.ResponseWriter, r *http.Request) {
+func GetLatestRevision(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -37,7 +37,7 @@ func getLatestRevision(w http.ResponseWriter, r *http.Request) {
 // TODO
 // function that returns list of new files since commit number
 // body: project id
-func getNewFiles(w http.ResponseWriter, r *http.Request) {
+func GetNewFiles(w http.ResponseWriter, r *http.Request) {
 	/*
 		claims, ok := clerk.SessionClaimsFromContext(r.Context())
 		if !ok {

@@ -41,21 +41,26 @@ func main() {
 	r.Get("/version", getVersion)
 	r.Get("/daijin-config", getConfig)
 
-	// protected routes
+	// custom JWT-protected routes
+	r.Group(func(r chi.Router) {
+		r.Post("/store", HandleUpload)
+	})
+
+	// Clerk-protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(clerkhttp.WithHeaderAuthorization())
-		r.Post("/ingest", handleUpload)
-		r.Get("/permission", getPermission)
-		r.Post("/permission", setPermission)
-		r.Post("/commit", commit)
-		r.Post("/project", createProject)
-		r.Get("/project/info", getProjectInfo)
-		r.Get("/project/user", getProjectsForUser)
-		r.Get("/project/new", getNewFiles)
-		r.Get("/project/commit", getLatestCommit)
-		r.Get("/project/file", getLatestRevision)
-		r.Post("/team", createTeam)
-		r.Get("/team", getTeamForUser)
+		r.Get("/permission", GetPermission)
+		r.Post("/permission", SetPermission)
+		//r.Post("/storerequest", HandleStoreRequest)
+		r.Post("/commit", CreateCommit)
+		r.Post("/project", CreateProject)
+		r.Get("/project/info", GetProjectInfo)
+		r.Get("/project/user", GetProjectsForUser)
+		r.Get("/project/new", GetNewFiles)
+		r.Get("/project/commit", GetLatestCommit)
+		r.Get("/project/file", GetLatestRevision)
+		r.Post("/team", CreateTeam)
+		r.Get("/team", GetTeamForUser)
 		r.Get("/team/by-id/{teamId}", getTeamInformation)
 	})
 

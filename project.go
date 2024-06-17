@@ -58,7 +58,7 @@ type ProjectCreationRequest struct {
 	TeamID int    `json:"teamId"`
 }
 
-func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
+func GetProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
@@ -101,7 +101,7 @@ func getProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	`, user, string(projectsJson), string(managedJson))
 }
 
-func createProject(w http.ResponseWriter, r *http.Request) {
+func CreateProject(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
@@ -155,7 +155,7 @@ func createProject(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{ "status": "success" }`)
 }
 
-func getProjectInfo(w http.ResponseWriter, r *http.Request) {
+func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
@@ -240,8 +240,8 @@ func getProjectPermissionByID(userId string, projectId int, teamId int) int {
 *
 body:
 - projectid, teamid
-- proposed commit number
-- commit msg
+- proposed CreateCommit number
+- CreateCommit msg
 - files: [
 {
 filepath
@@ -251,7 +251,7 @@ list of hashes
 }
 ]
 */
-func commit(w http.ResponseWriter, r *http.Request) {
+func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -293,7 +293,7 @@ func commit(w http.ResponseWriter, r *http.Request) {
 }
 
 // given a project id, returns the newest commit id used
-func getLatestCommit(w http.ResponseWriter, r *http.Request) {
+func GetLatestCommit(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)

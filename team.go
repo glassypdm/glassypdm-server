@@ -25,7 +25,7 @@ type TeamCreationRequest struct {
 	Name string `json:"name"`
 }
 
-func createTeam(w http.ResponseWriter, r *http.Request) {
+func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
@@ -107,7 +107,7 @@ func checkPermissionByID(teamid int, userid string) int {
 }
 
 // input: email of person and what team
-func getPermission(w http.ResponseWriter, r *http.Request) {
+func GetPermission(w http.ResponseWriter, r *http.Request) {
 	_, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -144,7 +144,7 @@ type PermissionRequest struct {
 
 // inputs: email of person to set, and the desired permission level, and what team
 // TODO: if setting a new owner, demote the old owner to manager
-func setPermission(w http.ResponseWriter, r *http.Request) {
+func SetPermission(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
@@ -200,7 +200,7 @@ func setPermission(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{ "status": "valid" }`)
 }
 
-func getTeamForUser(w http.ResponseWriter, r *http.Request) {
+func GetTeamForUser(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
