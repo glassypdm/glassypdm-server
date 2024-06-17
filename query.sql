@@ -6,6 +6,11 @@ WHERE userid = ?;
 SELECT level FROM projectpermission
 WHERE userid = ?;
 
+-- name: FindProjectInitCommit :one
+SELECT cid FROM 'commit'
+WHERE projectid = ?
+ORDER BY cid ASC LIMIT 1;
+
 -- name: GetTeamName :one
 SELECT name FROM team
 WHERE teamid = ? LIMIT 1;

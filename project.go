@@ -182,6 +182,11 @@ func getProjectInfo(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
 		return
 	}
+	cid, err := query.FindProjectInitCommit(ctx, int64(pid))
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+		return
+	}
 
 	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: claims.Subject})
 	if err != nil {
@@ -198,9 +203,10 @@ func getProjectInfo(w http.ResponseWriter, r *http.Request) {
 	{
 		"title": "%s",
 		"teamId": %v,
+		"initCommit": %v,
 		"canManage": %v
 	}
-	`, projectname, team, CanManage)
+	`, projectname, team, cid, CanManage)
 }
 
 // 0 (not found and not in team): no permission at all

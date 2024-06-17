@@ -39,6 +39,19 @@ func (q *Queries) DeleteTeamPermission(ctx context.Context, userid string) (Team
 	return i, err
 }
 
+const findProjectInitCommit = `-- name: FindProjectInitCommit :one
+SELECT cid FROM 'commit'
+WHERE projectid = ?
+ORDER BY cid ASC LIMIT 1
+`
+
+func (q *Queries) FindProjectInitCommit(ctx context.Context, projectid int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, findProjectInitCommit, projectid)
+	var cid int64
+	err := row.Scan(&cid)
+	return cid, err
+}
+
 const findProjectPermissions = `-- name: FindProjectPermissions :many
 SELECT level FROM projectpermission
 WHERE userid = ?
