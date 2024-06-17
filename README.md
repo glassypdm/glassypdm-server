@@ -1,4 +1,10 @@
 # daijinCAD-server
+## TODO
+- [ ] file upload routes `/ingest` `/ingestreq`
+- [ ] POST `/commit` route with db transaction
+- [ ] route where we can get new files since a commit ID for a project
+- [ ] `/project/info` return if user can manage project permissions/settings
+
 ## Build Instructions
 Prerequisites:
 - `go`

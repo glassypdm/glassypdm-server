@@ -9,6 +9,11 @@ WHERE userid = ?;
 -- name: GetTeamName :one
 SELECT name FROM team
 WHERE teamid = ? LIMIT 1;
+
+-- name: GetTeamFromProject :one
+SELECT teamid FROM project
+WHERE pid = ? LIMIT 1;
+
 -- name: GetTeamPermission :one
 SELECT level FROM teampermission
 WHERE teamid = ? AND userid = ?

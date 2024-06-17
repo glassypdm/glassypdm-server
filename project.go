@@ -157,7 +157,7 @@ func createProject(w http.ResponseWriter, r *http.Request) {
 
 func getProjectInfo(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	_, ok := clerk.SessionClaimsFromContext(r.Context())
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"access": "unauthorized"}`))
@@ -177,11 +177,30 @@ func getProjectInfo(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
 		return
 	}
+	team, err := query.GetTeamFromProject(ctx, int64(pid))
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+		return
+	}
+
+	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: claims.Subject})
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+		return
+	}
+	var CanManage bool
+	if permission > 1 {
+		CanManage = true
+	} else {
+		CanManage = false
+	}
 	fmt.Fprintf(w, `
 	{
-		"title": "%s"
+		"title": "%s",
+		"teamId": %v,
+		"canManage": %v
 	}
-	`, projectname)
+	`, projectname, team, CanManage)
 }
 
 // 0 (not found and not in team): no permission at all
