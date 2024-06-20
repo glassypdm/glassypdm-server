@@ -40,16 +40,16 @@ func (q *Queries) DeleteTeamPermission(ctx context.Context, userid string) (Team
 }
 
 const findProjectInitCommit = `-- name: FindProjectInitCommit :one
-SELECT cid FROM 'commit'
+SELECT commitid FROM 'commit'
 WHERE projectid = ?
-ORDER BY cid ASC LIMIT 1
+ORDER BY commitid ASC LIMIT 1
 `
 
 func (q *Queries) FindProjectInitCommit(ctx context.Context, projectid int64) (int64, error) {
 	row := q.db.QueryRowContext(ctx, findProjectInitCommit, projectid)
-	var cid int64
-	err := row.Scan(&cid)
-	return cid, err
+	var commitid int64
+	err := row.Scan(&commitid)
+	return commitid, err
 }
 
 const findProjectPermissions = `-- name: FindProjectPermissions :many
@@ -142,14 +142,14 @@ func (q *Queries) FindUserManagedTeams(ctx context.Context, userid string) ([]Fi
 }
 
 const findUserProjects = `-- name: FindUserProjects :many
-SELECT pid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid
+SELECT projectid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid
 WHERE project.teamid = ?
 `
 
 type FindUserProjectsRow struct {
-	Pid   int64
-	Title string
-	Name  string
+	Projectid int64
+	Title     string
+	Name      string
 }
 
 func (q *Queries) FindUserProjects(ctx context.Context, teamid int64) ([]FindUserProjectsRow, error) {
@@ -161,7 +161,7 @@ func (q *Queries) FindUserProjects(ctx context.Context, teamid int64) ([]FindUse
 	var items []FindUserProjectsRow
 	for rows.Next() {
 		var i FindUserProjectsRow
-		if err := rows.Scan(&i.Pid, &i.Title, &i.Name); err != nil {
+		if err := rows.Scan(&i.Projectid, &i.Title, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -209,7 +209,7 @@ func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]FindUserT
 }
 
 const getLatestCommit = `-- name: GetLatestCommit :one
-SELECT MAX(cid) FROM 'commit'
+SELECT MAX(commitid) FROM 'commit'
 WHERE projectid = ? LIMIT 1
 `
 
@@ -222,11 +222,11 @@ func (q *Queries) GetLatestCommit(ctx context.Context, projectid int64) (interfa
 
 const getProjectInfo = `-- name: GetProjectInfo :one
 SELECT title FROM project
-WHERE pid = ? LIMIT 1
+WHERE projectid = ? LIMIT 1
 `
 
-func (q *Queries) GetProjectInfo(ctx context.Context, pid int64) (string, error) {
-	row := q.db.QueryRowContext(ctx, getProjectInfo, pid)
+func (q *Queries) GetProjectInfo(ctx context.Context, projectid int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, getProjectInfo, projectid)
 	var title string
 	err := row.Scan(&title)
 	return title, err
@@ -251,11 +251,11 @@ func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermis
 
 const getTeamFromProject = `-- name: GetTeamFromProject :one
 SELECT teamid FROM project
-WHERE pid = ? LIMIT 1
+WHERE projectid = ? LIMIT 1
 `
 
-func (q *Queries) GetTeamFromProject(ctx context.Context, pid int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getTeamFromProject, pid)
+func (q *Queries) GetTeamFromProject(ctx context.Context, projectid int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTeamFromProject, projectid)
 	var teamid int64
 	err := row.Scan(&teamid)
 	return teamid, err
@@ -339,13 +339,13 @@ func (q *Queries) GetUploadPermission(ctx context.Context, userid string) (int64
 const insertCommit = `-- name: InsertCommit :one
 INSERT INTO 'commit'(projectid, userid, comment, numfiles)
 VALUES (?, ?, ?, ?)
-RETURNING cid
+RETURNING commitid
 `
 
 type InsertCommitParams struct {
 	Projectid int64
 	Userid    string
-	Comment   string
+	Comment   interface{}
 	Numfiles  int64
 }
 
@@ -356,15 +356,15 @@ func (q *Queries) InsertCommit(ctx context.Context, arg InsertCommitParams) (int
 		arg.Comment,
 		arg.Numfiles,
 	)
-	var cid int64
-	err := row.Scan(&cid)
-	return cid, err
+	var commitid int64
+	err := row.Scan(&commitid)
+	return commitid, err
 }
 
 const insertProject = `-- name: InsertProject :one
 INSERT INTO project(title, teamid)
 VALUES (?, ?)
-RETURNING pid
+RETURNING projectid
 `
 
 type InsertProjectParams struct {
@@ -374,9 +374,9 @@ type InsertProjectParams struct {
 
 func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, insertProject, arg.Title, arg.Teamid)
-	var pid int64
-	err := row.Scan(&pid)
-	return pid, err
+	var projectid int64
+	err := row.Scan(&projectid)
+	return projectid, err
 }
 
 const insertTeam = `-- name: InsertTeam :one

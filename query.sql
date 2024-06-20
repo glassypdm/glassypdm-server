@@ -7,9 +7,9 @@ SELECT level FROM projectpermission
 WHERE userid = ?;
 
 -- name: FindProjectInitCommit :one
-SELECT cid FROM 'commit'
+SELECT commitid FROM 'commit'
 WHERE projectid = ?
-ORDER BY cid ASC LIMIT 1;
+ORDER BY commitid ASC LIMIT 1;
 
 -- name: GetTeamName :one
 SELECT name FROM team
@@ -17,7 +17,7 @@ WHERE teamid = ? LIMIT 1;
 
 -- name: GetTeamFromProject :one
 SELECT teamid FROM project
-WHERE pid = ? LIMIT 1;
+WHERE projectid = ? LIMIT 1;
 
 -- name: GetTeamPermission :one
 SELECT level FROM teampermission
@@ -43,7 +43,7 @@ SELECT userid, level FROM teampermission
 WHERE teamid = ?;
 
 -- name: FindUserProjects :many
-SELECT pid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid
+SELECT projectid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid
 WHERE project.teamid = ?;
 
 -- name: FindUserManagedTeams :many
@@ -57,11 +57,11 @@ WHERE teamid = ? and title=? LIMIT 1;
 -- name: InsertProject :one
 INSERT INTO project(title, teamid)
 VALUES (?, ?)
-RETURNING pid;
+RETURNING projectid;
 
 -- name: GetProjectInfo :one
 SELECT title FROM project
-WHERE pid = ? LIMIT 1;
+WHERE projectid = ? LIMIT 1;
 
 -- name: GetProjectPermission :one
 SELECT level FROM projectpermission
@@ -72,7 +72,7 @@ SELECT COUNT(*) FROM teampermission
 WHERE userid = ? LIMIT 1;
 
 -- name: GetLatestCommit :one
-SELECT MAX(cid) FROM 'commit'
+SELECT MAX(commitid) FROM 'commit'
 WHERE projectid = ? LIMIT 1;
 
 -- name: InsertTeam :one
@@ -83,4 +83,4 @@ RETURNING teamid;
 -- name: InsertCommit :one
 INSERT INTO 'commit'(projectid, userid, comment, numfiles)
 VALUES (?, ?, ?, ?)
-RETURNING cid;
+RETURNING commitid;

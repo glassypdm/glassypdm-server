@@ -80,7 +80,7 @@ func GetProjectsForUser(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 		}
 		for _, tp := range TeamProjects {
-			projects = append(projects, Project{Id: int(tp.Pid), Name: tp.Title, Team: tp.Name})
+			projects = append(projects, Project{Id: int(tp.Projectid), Name: tp.Title, Team: tp.Name})
 		}
 	}
 
@@ -278,8 +278,14 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 
 	//tx, qtx := useTxQueries()
 
+	// TODO make commit, get new commitid
+
 	// TODO
 	// iterate through hashes to see if we have it in S3 (can see thru block table)
+	// add entries to filerevision here as well
+	// TODO filerevision trigger where we add entries to file if filepath is new
+	// TODO fix file schema - we don't need fid; treat file as a relation table between filerevision and project - can have lock in here
+	// TODO foreign keys owo
 	// if we need hashes, return nb
 	// otherwise, commit
 	var hashesMissing []string
@@ -294,8 +300,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO
-	// no hashes missing, so commit
-	// make an entry in the commit, file, and filerevision tables
+	// no hashes missing, so commit the transaction
 }
 
 // given a project id, returns the newest commit id used

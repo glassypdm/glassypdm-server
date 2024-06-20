@@ -12,44 +12,41 @@ import (
 type Block struct {
 	Hash  string
 	S3key string
-}
-
-type Chunk struct {
-	Cid         int64
-	Frid        int64
-	Chunknumber int64
-	Hash        string
+	Size  int64
 }
 
 type Commit struct {
-	Cid       int64
+	Commitid  int64
 	Projectid int64
 	Userid    string
-	Comment   string
+	Comment   interface{}
 	Numfiles  int64
 	Cno       sql.NullInt64
 	Timestamp time.Time
 }
 
 type File struct {
-	Fid  int64
-	Pid  int64
-	Path string
+	Projectid   int64
+	Path        string
+	Locked      int64
+	Lockownerid sql.NullString
 }
 
 type Filerevision struct {
 	Frid       int64
-	Fid        int64
+	Projectid  int64
+	Path       string
 	Commitid   int64
-	Numchunks  int64
+	Hash       string
+	Size       int64
 	Frno       sql.NullInt64
 	Changetype int64
 }
 
 type Project struct {
-	Pid    int64
-	Title  string
-	Teamid int64
+	Projectid int64
+	Title     string
+	Teamid    int64
 }
 
 type Projectpermission struct {

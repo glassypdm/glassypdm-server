@@ -41,17 +41,12 @@ func main() {
 	r.Get("/version", getVersion)
 	r.Get("/daijin-config", getConfig)
 
-	// custom JWT-protected routes
-	r.Group(func(r chi.Router) {
-		r.Post("/store", HandleUpload)
-	})
-
 	// Clerk-protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(clerkhttp.WithHeaderAuthorization())
 		r.Get("/permission", GetPermission)
 		r.Post("/permission", SetPermission)
-		//r.Post("/storerequest", HandleStoreRequest)
+		r.Post("/store/upload", HandleUpload)
 		r.Post("/commit", CreateCommit)
 		r.Post("/project", CreateProject)
 		r.Get("/project/info", GetProjectInfo)

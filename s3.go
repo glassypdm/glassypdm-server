@@ -37,8 +37,10 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseMultipartForm(20 * (1 << 20)); err != nil { // TODO adjust max memory; currently 20 * (1 << 20) is 20 MB. config it from env
-		w.Write([]byte("error"))
+	// TODO config file size from env
+	// and send it in /config
+	if err := r.ParseMultipartForm(900 * (1 << 20)); err != nil { // 900 * (1 << 20) is 900 MB.
+		w.Write([]byte(`{"status": "file size too large"}`))
 		return
 	}
 
