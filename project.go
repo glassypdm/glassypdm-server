@@ -219,9 +219,11 @@ func getProjectPermissionByID(userId string, projectId int, teamId int) int {
 	// not in team: < 1
 	if teamPermission < 1 {
 		return 0
+	} else if teamPermission >= 2 {
+		return 3
 	}
 
-	db := createDB()
+	db := CreateDB()
 	defer db.Close()
 
 	queryresult := db.QueryRow("SELECT level FROM projectpermission WHERE userid = ? AND projectid = ?", userId, projectId)
@@ -252,6 +254,7 @@ list of hashes
 ]
 */
 func CreateCommit(w http.ResponseWriter, r *http.Request) {
+	//ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -267,10 +270,13 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 
 	// check permission
 	projectPermission := getProjectPermissionByID(userId, request.ProjectId, request.TeamId)
+	fmt.Println(projectPermission)
 	if projectPermission < 2 {
 		fmt.Fprintf(w, `{ "response": "no permission" }`)
 		return
 	}
+
+	//tx, qtx := useTxQueries()
 
 	// TODO
 	// iterate through hashes to see if we have it in S3 (can see thru block table)
@@ -308,7 +314,7 @@ func GetLatestCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db := createDB()
+	db := CreateDB()
 	defer db.Close()
 
 	// check user permissions

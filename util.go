@@ -44,7 +44,7 @@ func getConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(data)
 }
 
-func createDB() *sql.DB {
+func CreateDB() *sql.DB {
 	dburl := os.Getenv("TURSO_DATABASE_URL") + "?authToken=" + os.Getenv("TURSO_AUTH_TOKEN")
 	db, err := sql.Open("libsql", dburl)
 	if err != nil {
@@ -59,7 +59,10 @@ var ddl string
 
 func UseQueries() *sqlcgen.Queries {
 	ctx := context.Background()
-	db := createDB()
+	db := CreateDB()
+
+	// ensure schema.sql matches with what
+	// is actually in the database
 	_, err := db.ExecContext(ctx, ddl)
 	if err != nil {
 		//fmt.Println(ddl)
@@ -70,6 +73,16 @@ func UseQueries() *sqlcgen.Queries {
 
 	queries := sqlcgen.New(db)
 	return queries
+}
+
+func useTxQueries() (*sql.Tx, *sqlcgen.Queries) {
+	//ctx := context.Background()
+	db := CreateDB()
+
+	tx, _ := db.Begin()
+
+	qtx := sqlcgen.New(db).WithTx(tx)
+	return tx, qtx
 }
 
 func getUserIDByEmail(email string) string {

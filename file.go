@@ -27,7 +27,7 @@ func GetLatestRevision(w http.ResponseWriter, r *http.Request) {
 		// TODO no read permission so return error
 	}
 
-	db := createDB()
+	db := CreateDB()
 	defer db.Close()
 
 	// TODO get most up-to-date file revision for filepath
