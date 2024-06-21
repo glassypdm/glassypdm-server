@@ -84,3 +84,8 @@ RETURNING teamid;
 INSERT INTO 'commit'(projectid, userid, comment, numfiles)
 VALUES (?, ?, ?, ?)
 RETURNING commitid;
+
+-- name: FindHash :one
+SELECT * FROM block
+WHERE hash = ?
+LIMIT 1;
