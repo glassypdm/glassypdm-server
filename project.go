@@ -39,10 +39,8 @@ list of hashes
 ]
 */
 type File struct {
-	Path      string   `json:"path"`
-	Size      int      `json:"size"`
-	NumChunks int      `json:"num_chunks"`
-	Hashes    []string `json:"hashes"`
+	Path string `json:"path"`
+	Hash string `json:"hash"`
 }
 
 type CommitRequest struct {
@@ -254,7 +252,7 @@ list of hashes
 ]
 */
 func CreateCommit(w http.ResponseWriter, r *http.Request) {
-	//ctx := context.Background()
+	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -276,31 +274,33 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//tx, qtx := useTxQueries()
+	tx, qtx := useTxQueries()
 
-	// TODO make commit, get new commitid
+	// make commit, get new commitid
+	cid, err := qtx.InsertCommit(ctx, sqlcgen.InsertCommitParams{
+		Projectid: int64(request.ProjectId),
+		Userid:    userId,
+		Comment:   request.Message,
+		Numfiles:  int64(len(request.Files))})
 
 	// TODO
 	// iterate through hashes to see if we have it in S3 (can see thru block table)
 	// add entries to filerevision here as well
 	// TODO filerevision trigger where we add entries to file if filepath is new
-	// TODO fix file schema - we don't need fid; treat file as a relation table between filerevision and project - can have lock in here
-	// TODO foreign keys owo
 	// if we need hashes, return nb
 	// otherwise, commit
 	var hashesMissing []string
-	/*
-		for _, file := range request.Files {
+	for _, file := range request.Files {
 
-		}
-	*/
+	}
 	if len(hashesMissing) > 0 {
 		// respond with nb
 		return
 	}
 
-	// TODO
 	// no hashes missing, so commit the transaction
+	tx.Commit()
+	fmt.Fprintf(w, `{"status": "success"}`)
 }
 
 // given a project id, returns the newest commit id used

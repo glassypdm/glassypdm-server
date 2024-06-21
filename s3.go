@@ -61,12 +61,18 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	s3, err := generateS3Client()
 	if err != nil {
 		fmt.Println(err)
-		w.Write([]byte("issue w/ s3 client"))
+		w.Write([]byte(`{"status": "issue connecting to s3"}`))
 		return
 	}
 
 	hash := r.FormValue("hash")
 	if hash == "" {
+		// TODO incomplete form
+		return
+	}
+
+	size := r.FormValue("size")
+	if size == "" {
 		// TODO incomplete form
 		return
 	}
