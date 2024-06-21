@@ -1,3 +1,5 @@
 .env
 *.exe
 *.bat
+glassypdm-server
+*.sh
