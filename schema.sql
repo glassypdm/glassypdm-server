@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS 'commit'(
     comment TEXT NOT NULL DEFAULT "",
     numfiles INTEGER NOT NULL,
     cno INTEGER,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    timestamp INTEGER DEFAULT CURRENT_TIMESTAMP NOT NULL,
     FOREIGN KEY(projectid) REFERENCES project(projectid)
 );
 
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS filerevision(
     hash TEXT NOT NULL,
     frno INTEGER,
     changetype INTEGER NOT NULL,
-    FOREIGN KEY(path) REFERENCES file(path),
+    FOREIGN KEY(path, projectid) REFERENCES file(path, projectid),
     FOREIGN KEY(projectid) REFERENCES project(projectid),
     FOREIGN KEY(commitid) REFERENCES 'commit'(commitid),
     FOREIGN KEY(hash) REFERENCES block(hash)

@@ -132,6 +132,7 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check for unique name
+	// FIXME might be unnecessary now
 	count, err := query.CheckProjectName(ctx, sqlcgen.CheckProjectNameParams{Teamid: int64(request.TeamID), Title: request.Name})
 	if err != nil {
 		fmt.Println("project name")
@@ -242,7 +243,6 @@ func getProjectPermissionByID(userId string, projectId int, teamId int) int {
 *
 body:
 - projectid, teamid
-- proposed CreateCommit number
 - CreateCommit msg
 - files: [
 {
@@ -270,7 +270,6 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 
 	// check permission
 	projectPermission := getProjectPermissionByID(userId, request.ProjectId, request.TeamId)
-	fmt.Println(projectPermission)
 	if projectPermission < 2 {
 		fmt.Fprintf(w, `{ "response": "no permission" }`)
 		return
@@ -285,6 +284,8 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		Comment:   request.Message,
 		Numfiles:  int64(len(request.Files))})
 
+	// FIXME if we create a new file entry
+	// we don't see it when we have a filerevision
 	var hashesMissing []string
 	for _, file := range request.Files {
 		_ = file
@@ -292,6 +293,9 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		err = qtx.InsertFile(ctx, sqlcgen.InsertFileParams{Projectid: int64(request.ProjectId), Path: file.Path})
 		if err != nil {
 			// TODO do we need to handle anything here?
+			fmt.Println("uwuwuwu")
+
+			fmt.Printf("err: %v\n", err)
 		}
 
 		// add filerevision
@@ -304,7 +308,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 			Changetype: int64(file.ChangeType)})
 		if err != nil {
 			// TODO confirm error
-			fmt.Println("error")
+			fmt.Printf("error %v\n", err)
 			hashesMissing = append(hashesMissing, file.Hash)
 			continue
 		}

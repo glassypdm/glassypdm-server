@@ -6,7 +6,6 @@ package sqlcgen
 
 import (
 	"database/sql"
-	"time"
 )
 
 type Block struct {
@@ -22,7 +21,7 @@ type Commit struct {
 	Comment   interface{}
 	Numfiles  int64
 	Cno       sql.NullInt64
-	Timestamp time.Time
+	Timestamp int64
 }
 
 type File struct {
