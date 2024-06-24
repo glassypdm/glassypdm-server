@@ -39,6 +39,19 @@ func (q *Queries) DeleteTeamPermission(ctx context.Context, userid string) (Team
 	return i, err
 }
 
+const findHash = `-- name: FindHash :one
+SELECT hash, s3key, size FROM block
+WHERE hash = ?
+LIMIT 1
+`
+
+func (q *Queries) FindHash(ctx context.Context, hash string) (Block, error) {
+	row := q.db.QueryRowContext(ctx, findHash, hash)
+	var i Block
+	err := row.Scan(&i.Hash, &i.S3key, &i.Size)
+	return i, err
+}
+
 const findProjectInitCommit = `-- name: FindProjectInitCommit :one
 SELECT commitid FROM 'commit'
 WHERE projectid = ?
@@ -359,6 +372,45 @@ func (q *Queries) InsertCommit(ctx context.Context, arg InsertCommitParams) (int
 	var commitid int64
 	err := row.Scan(&commitid)
 	return commitid, err
+}
+
+const insertFile = `-- name: InsertFile :exec
+INSERT INTO file(projectid, path)
+VALUES (?, ?)
+`
+
+type InsertFileParams struct {
+	Projectid int64
+	Path      string
+}
+
+func (q *Queries) InsertFile(ctx context.Context, arg InsertFileParams) error {
+	_, err := q.db.ExecContext(ctx, insertFile, arg.Projectid, arg.Path)
+	return err
+}
+
+const insertFileRevision = `-- name: InsertFileRevision :exec
+INSERT INTO filerevision(projectid, path, commitid, hash, changetype)
+VALUES (?, ?, ?, ?, ?)
+`
+
+type InsertFileRevisionParams struct {
+	Projectid  int64
+	Path       string
+	Commitid   int64
+	Hash       string
+	Changetype int64
+}
+
+func (q *Queries) InsertFileRevision(ctx context.Context, arg InsertFileRevisionParams) error {
+	_, err := q.db.ExecContext(ctx, insertFileRevision,
+		arg.Projectid,
+		arg.Path,
+		arg.Commitid,
+		arg.Hash,
+		arg.Changetype,
+	)
+	return err
 }
 
 const insertProject = `-- name: InsertProject :one

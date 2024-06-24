@@ -38,7 +38,6 @@ type Filerevision struct {
 	Path       string
 	Commitid   int64
 	Hash       string
-	Size       int64
 	Frno       sql.NullInt64
 	Changetype int64
 }

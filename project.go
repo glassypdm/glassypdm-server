@@ -39,16 +39,16 @@ list of hashes
 ]
 */
 type File struct {
-	Path string `json:"path"`
-	Hash string `json:"hash"`
+	Path       string `json:"path"`
+	Hash       string `json:"hash"`
+	ChangeType int    `json:"changetype"`
 }
 
 type CommitRequest struct {
-	ProjectId         int    `json:"projectId"`
-	TeamId            int    `json:"teamId"`
-	Message           string `json:"message"`
-	TentativeCommitId int    `json:"tentativeCommitId"`
-	Files             []File `json:"files"`
+	ProjectId int    `json:"projectId"`
+	TeamId    int    `json:"teamId"`
+	Message   string `json:"message"`
+	Files     []File `json:"files"`
 }
 
 type ProjectCreationRequest struct {
@@ -121,6 +121,7 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(request)
 	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(request.TeamID), Userid: claims.Subject})
 	if err != nil {
+		fmt.Println("a ...any")
 		fmt.Fprintf(w, `{ "status": "db error" }`)
 		return
 	}
@@ -133,6 +134,7 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	// check for unique name
 	count, err := query.CheckProjectName(ctx, sqlcgen.CheckProjectNameParams{Teamid: int64(request.TeamID), Title: request.Name})
 	if err != nil {
+		fmt.Println("project name")
 		fmt.Fprintf(w, `{ "status": "db error" }`)
 		return
 	} else if count > 0 {
@@ -245,9 +247,8 @@ body:
 - files: [
 {
 filepath
-size
-number of chunks
-list of hashes
+hash
+changetype
 }
 ]
 */
@@ -264,6 +265,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		fmt.Fprintf(w, `{ "response": "bad json" }`)
+		return
 	}
 
 	// check permission
@@ -275,7 +277,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tx, qtx := useTxQueries()
-
+	defer tx.Rollback()
 	// make commit, get new commitid
 	cid, err := qtx.InsertCommit(ctx, sqlcgen.InsertCommitParams{
 		Projectid: int64(request.ProjectId),
@@ -283,22 +285,43 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		Comment:   request.Message,
 		Numfiles:  int64(len(request.Files))})
 
-	// TODO
-	// iterate through hashes to see if we have it in S3 (can see thru block table)
-	// add entries to filerevision here as well
-	// TODO filerevision trigger where we add entries to file if filepath is new
-	// if we need hashes, return nb
-	// otherwise, commit
 	var hashesMissing []string
 	for _, file := range request.Files {
+		_ = file
+		// insert into file
+		err = qtx.InsertFile(ctx, sqlcgen.InsertFileParams{Projectid: int64(request.ProjectId), Path: file.Path})
+		if err != nil {
+			// TODO do we need to handle anything here?
+		}
+
+		// add filerevision
+		// error if we fail a unique thing (hopefully)
+		err = qtx.InsertFileRevision(ctx, sqlcgen.InsertFileRevisionParams{
+			Projectid:  int64(request.ProjectId),
+			Path:       file.Path,
+			Commitid:   cid,
+			Hash:       file.Hash,
+			Changetype: int64(file.ChangeType)})
+		if err != nil {
+			// TODO confirm error
+			fmt.Println("error")
+			hashesMissing = append(hashesMissing, file.Hash)
+			continue
+		}
 
 	}
 	if len(hashesMissing) > 0 {
 		// respond with nb
+		fmt.Fprintf(w, `
+			{
+			"status": "nb",
+			"hashes": %v
+			}`, hashesMissing)
 		return
 	}
 
 	// no hashes missing, so commit the transaction
+	// we should consider returning more info too
 	tx.Commit()
 	fmt.Fprintf(w, `{"status": "success"}`)
 }

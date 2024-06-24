@@ -59,7 +59,6 @@ CREATE TABLE IF NOT EXISTS filerevision(
     path TEXT NOT NULL,
     commitid INTEGER NOT NULL,
     hash TEXT NOT NULL,
-    size INTEGER NOT NULL,
     frno INTEGER,
     changetype INTEGER NOT NULL,
     FOREIGN KEY(path) REFERENCES file(path),

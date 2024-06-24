@@ -89,3 +89,11 @@ RETURNING commitid;
 SELECT * FROM block
 WHERE hash = ?
 LIMIT 1;
+
+-- name: InsertFile :exec
+INSERT INTO file(projectid, path)
+VALUES (?, ?);
+
+-- name: InsertFileRevision :exec
+INSERT INTO filerevision(projectid, path, commitid, hash, changetype)
+VALUES (?, ?, ?, ?, ?);
