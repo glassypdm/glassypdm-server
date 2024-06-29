@@ -34,5 +34,6 @@ require (
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
+	lukechampine.com/blake3 v1.3.0 // indirect
 	nhooyr.io/websocket v1.8.10 // indirect
 )

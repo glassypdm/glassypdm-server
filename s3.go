@@ -2,18 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
 	"github.com/clerk/clerk-sdk-go/v2"
+	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"lukechampine.com/blake3"
 )
-
-type Sizer interface {
-	Size() int64
-}
 
 func generateS3Client() (*minio.Client, error) {
 	endpoint := os.Getenv("S3_ENDPOINT")
@@ -27,9 +27,8 @@ func generateS3Client() (*minio.Client, error) {
 	})
 }
 
-// multipart
-// chunk + hash
 func HandleUpload(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -37,47 +36,98 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO config file size from env
-	// and send it in /config
-	if err := r.ParseMultipartForm(900 * (1 << 20)); err != nil { // 900 * (1 << 20) is 900 MB.
-		w.Write([]byte(`{"status": "file size too large"}`))
+	// note: this size here is just for parsing and not the actual size limit of file
+	if err := r.ParseMultipartForm(900 * (1 << 20)); err != nil { // 900 * (1 << 20) is 900 MB
+		fmt.Fprintf(w, `{ "status": "multipart form parsing failed" }`)
 		return
 	}
 
 	// ensure user can upload to at least one project/team
 	if !canUserUpload(claims.Subject) {
-		return // TODO error message
+		fmt.Fprintf(w, `{ "status": "no upload permissions" }`)
+		return
 	}
 
-	file, _, err := r.FormFile("file")
-	// Create a buffer to store the header of the file in
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "couldn't read file" }`)
+		return
+	}
+	size := header.Size
+
+	hashUser := r.FormValue("hash")
+	if hashUser == "" {
+		fmt.Fprintf(w, `{ "status": "form format incorrect" }`)
+		return
+	}
 
 	// set position back to start.
+	// TODO delete?
 	if _, err := file.Seek(0, 0); err != nil {
+		fmt.Fprintf(w, `{ "status": "issue reading" }`)
 		fmt.Println(err)
 		return
 	}
+
+	queries := UseQueries()
 
 	s3, err := generateS3Client()
 	if err != nil {
 		fmt.Println(err)
-		w.Write([]byte(`{"status": "issue connecting to s3"}`))
+		fmt.Fprintf(w, `{ "status": "issue connecting to s3" }`)
+		return
+	}
+	hasher := blake3.New(32, nil)
+	tee := io.TeeReader(file, hasher)
+
+	// check if object exists in S3 already
+	_, err = queries.FindHash(ctx, hashUser)
+	if err != nil {
+		fmt.Println(err)
+		//fmt.Fprintf(w, `{ "status": "db error" }`)
+	} else {
+		fmt.Fprintf(w, `{ "status": "hash exists already" }`)
 		return
 	}
 
-	hash := r.FormValue("hash")
-	if hash == "" {
-		// TODO incomplete form
+	// insert object into S3
+	_, err = s3.PutObject(
+		ctx,
+		os.Getenv("S3_BUCKETNAME"),
+		hashUser,
+		tee,
+		size,
+		minio.PutObjectOptions{ContentType: "application/octet-stream"})
+
+	if err != nil {
+		fmt.Println(err)
+		fmt.Fprintf(w, `{ "status": "issue connecting to s3" }`)
 		return
 	}
 
-	size := r.FormValue("size")
-	if size == "" {
-		// TODO incomplete form
+	// confirm hash matches what the user supplies us
+	hashCalc := hasher.Sum(nil)
+	if hashUser != hex.EncodeToString(hashCalc) {
+		fmt.Println(hashUser)
+		fmt.Println(hex.EncodeToString(hashCalc))
+		fmt.Fprintf(w, `{ "status": "hash doesn't match" }`)
+		fmt.Println("bruh")
+
+		// remove object from bucket
+		s3.RemoveObject(
+			ctx,
+			os.Getenv("S3_BUCKETNAME"),
+			hashUser,
+			minio.RemoveObjectOptions{})
 		return
+	} else {
+		fmt.Println("hash ok")
+		// hash matches; so insert entry into database
+		err = queries.InsertHash(ctx, sqlcgen.InsertHashParams{Hash: hashUser, S3key: hashUser, Size: size})
+		if err != nil {
+			fmt.Fprintf(w, `{ "status": "db error" }`)
+		}
 	}
+	fmt.Fprintf(w, `{ "status": "success" }`)
 
-	s3.PutObject(context.Background(), os.Getenv("S3_BUCKETNAME"), hash, file, file.(Sizer).Size(), minio.PutObjectOptions{ContentType: "application/octet-stream"})
-
-	w.Write([]byte("hehez"))
 }

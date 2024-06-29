@@ -90,6 +90,10 @@ SELECT * FROM block
 WHERE hash = ?
 LIMIT 1;
 
+-- name: InsertHash :exec
+INSERT INTO block(hash, s3key, size)
+VALUES (?, ?, ?);
+
 -- name: InsertFile :exec
 INSERT INTO file(projectid, path)
 VALUES (?, ?);

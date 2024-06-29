@@ -413,6 +413,22 @@ func (q *Queries) InsertFileRevision(ctx context.Context, arg InsertFileRevision
 	return err
 }
 
+const insertHash = `-- name: InsertHash :exec
+INSERT INTO block(hash, s3key, size)
+VALUES (?, ?, ?)
+`
+
+type InsertHashParams struct {
+	Hash  string
+	S3key string
+	Size  int64
+}
+
+func (q *Queries) InsertHash(ctx context.Context, arg InsertHashParams) error {
+	_, err := q.db.ExecContext(ctx, insertHash, arg.Hash, arg.S3key, arg.Size)
+	return err
+}
+
 const insertProject = `-- name: InsertProject :one
 INSERT INTO project(title, teamid)
 VALUES (?, ?)
