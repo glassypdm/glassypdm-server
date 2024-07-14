@@ -183,6 +183,11 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
 		return
 	}
+	teamName, err := query.GetTeamName(ctx, team)
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+		return
+	}
 	cid, err := query.FindProjectInitCommit(ctx, int64(pid))
 	if err != nil {
 		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
@@ -204,10 +209,11 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 	{
 		"title": "%s",
 		"teamId": %v,
+		"teamName": "%s",
 		"initCommit": %v,
 		"canManage": %v
 	}
-	`, projectname, team, cid, CanManage)
+	`, projectname, team, teamName, cid, CanManage)
 }
 
 // 0 (not found and not in team): no permission at all
