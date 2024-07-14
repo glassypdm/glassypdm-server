@@ -119,6 +119,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 			os.Getenv("S3_BUCKETNAME"),
 			hashUser,
 			minio.RemoveObjectOptions{})
+
 		return
 	} else {
 		fmt.Println("hash ok")
@@ -130,4 +131,13 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(w, `{ "status": "success" }`)
 
+	// TODO not secure!!!
+	// we shouldn't let the user control the key
+	// ideas to fix:
+	// - hash the file here, compare results
+	// - use timestamp as s3key
+	// - compute a uuid somehow
+	s3.PutObject(context.Background(), os.Getenv("S3_BUCKETNAME"), hash, file, file.(Sizer).Size(), minio.PutObjectOptions{ContentType: "application/octet-stream"})
+
+	w.Write([]byte("hehez"))
 }
