@@ -46,7 +46,7 @@ func main() {
 		r.Use(clerkhttp.WithHeaderAuthorization())
 		r.Get("/permission", GetPermission)
 		r.Post("/permission", SetPermission)
-		r.Post("/store/upload", HandleUpload)
+		r.Post("/store/request", HandleUpload)
 		r.Post("/commit", CreateCommit)
 		r.Post("/project", CreateProject)
 		r.Get("/project/info", GetProjectInfo)

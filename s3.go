@@ -27,6 +27,12 @@ func generateS3Client() (*minio.Client, error) {
 	})
 }
 
+/*
+steps:
+- check permission for uploading in general
+- reads file, upload to s3
+- compares user-supplied hash w/ our own hashing. if they match, we put thing in db. otherwise we delete from s3
+*/
 func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -36,7 +42,8 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// note: this size here is just for parsing and not the actual size limit of file
+	// note: this size here is just for parsing and not the actual size limit of the file
+	// TODO is this note correct?
 	if err := r.ParseMultipartForm(900 * (1 << 20)); err != nil { // 900 * (1 << 20) is 900 MB
 		fmt.Fprintf(w, `{ "status": "multipart form parsing failed" }`)
 		return
@@ -62,7 +69,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// set position back to start.
-	// TODO delete?
+	// TODO do we need this?
 	if _, err := file.Seek(0, 0); err != nil {
 		fmt.Fprintf(w, `{ "status": "issue reading" }`)
 		fmt.Println(err)
@@ -131,13 +138,4 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(w, `{ "status": "success" }`)
 
-	// TODO not secure!!!
-	// we shouldn't let the user control the key
-	// ideas to fix:
-	// - hash the file here, compare results
-	// - use timestamp as s3key
-	// - compute a uuid somehow
-	s3.PutObject(context.Background(), os.Getenv("S3_BUCKETNAME"), hash, file, file.(Sizer).Size(), minio.PutObjectOptions{ContentType: "application/octet-stream"})
-
-	w.Write([]byte("hehez"))
 }
