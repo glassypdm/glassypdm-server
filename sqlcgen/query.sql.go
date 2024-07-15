@@ -262,6 +262,18 @@ func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermis
 	return level, err
 }
 
+const getTeamByProject = `-- name: GetTeamByProject :one
+SELECT teamid FROM project
+WHERE projectid = ? LIMIT 1
+`
+
+func (q *Queries) GetTeamByProject(ctx context.Context, projectid int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTeamByProject, projectid)
+	var teamid int64
+	err := row.Scan(&teamid)
+	return teamid, err
+}
+
 const getTeamFromProject = `-- name: GetTeamFromProject :one
 SELECT teamid FROM project
 WHERE projectid = ? LIMIT 1

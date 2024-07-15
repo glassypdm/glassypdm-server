@@ -23,7 +23,7 @@ func GetLatestRevision(w http.ResponseWriter, r *http.Request) {
 		// TODO return error, bad format
 	}
 	// TODO get teamid from pid
-	if getProjectPermissionByID(claims.Subject, pid, 0) < 1 {
+	if getProjectPermissionByID(claims.Subject, pid) < 1 {
 		// TODO no read permission so return error
 	}
 

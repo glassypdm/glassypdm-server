@@ -46,7 +46,6 @@ type File struct {
 
 type CommitRequest struct {
 	ProjectId int    `json:"projectId"`
-	TeamId    int    `json:"teamId"`
 	Message   string `json:"message"`
 	Files     []File `json:"files"`
 }
@@ -221,8 +220,18 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 // 2 (found): write access
 // 3 (manager): manager, can add write access
 // 4 (owner): can set managers
-func getProjectPermissionByID(userId string, projectId int, teamId int) int {
-	teamPermission := checkPermissionByID(teamId, userId)
+func getProjectPermissionByID(userId string, projectId int) int {
+	ctx := context.Background()
+
+	queries := UseQueries()
+
+	teamId, err := queries.GetTeamByProject(ctx, int64(projectId))
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+
+	teamPermission := checkPermissionByID(int(teamId), userId)
 	// not in team: < 1
 	if teamPermission < 1 {
 		return 0
@@ -230,19 +239,15 @@ func getProjectPermissionByID(userId string, projectId int, teamId int) int {
 		return 3
 	}
 
-	db := CreateDB()
-	defer db.Close()
-
-	queryresult := db.QueryRow("SELECT level FROM projectpermission WHERE userid = ? AND projectid = ?", userId, projectId)
-	var level int
-	err := queryresult.Scan(&level)
+	// TODO test
+	level, err := queries.GetProjectPermission(ctx, sqlcgen.GetProjectPermissionParams{Userid: userId, Projectid: int64(projectId)})
 	if err == sql.ErrNoRows {
 		return 1 // read only
 	} else if err != nil {
 		return 0 // general error/no permission
 	}
 
-	return level
+	return int(level)
 }
 
 /*
@@ -275,7 +280,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check permission
-	projectPermission := getProjectPermissionByID(userId, request.ProjectId, request.TeamId)
+	projectPermission := getProjectPermissionByID(userId, request.ProjectId)
 	if projectPermission < 2 {
 		fmt.Fprintf(w, `{ "response": "no permission" }`)
 		return
