@@ -333,7 +333,10 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	// no hashes missing, so commit the transaction
 	// we should consider returning more info too
 	tx.Commit()
-	fmt.Fprintf(w, `{"status": "success"}`)
+	fmt.Fprintf(w, `{
+	"status": "success",
+	"commitid": %v
+	}`, cid)
 }
 
 // given a project id, returns the newest commit id used
