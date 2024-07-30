@@ -221,6 +221,23 @@ func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]FindUserT
 	return items, nil
 }
 
+const getHash = `-- name: GetHash :one
+SELECT hash FROM filerevision
+WHERE projectid = ? AND path = ? LIMIT 1
+`
+
+type GetHashParams struct {
+	Projectid int64
+	Path      string
+}
+
+func (q *Queries) GetHash(ctx context.Context, arg GetHashParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getHash, arg.Projectid, arg.Path)
+	var hash string
+	err := row.Scan(&hash)
+	return hash, err
+}
+
 const getLatestCommit = `-- name: GetLatestCommit :one
 SELECT MAX(commitid) FROM 'commit'
 WHERE projectid = ? LIMIT 1
@@ -260,6 +277,18 @@ func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermis
 	var level int64
 	err := row.Scan(&level)
 	return level, err
+}
+
+const getS3Key = `-- name: GetS3Key :one
+SELECT s3key FROM block
+WHERE hash = ? LIMIT 1
+`
+
+func (q *Queries) GetS3Key(ctx context.Context, hash string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getS3Key, hash)
+	var s3key string
+	err := row.Scan(&s3key)
+	return s3key, err
 }
 
 const getTeamByProject = `-- name: GetTeamByProject :one

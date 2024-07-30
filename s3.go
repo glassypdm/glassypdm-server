@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"time"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
@@ -138,4 +141,71 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(w, `{ "status": "success" }`)
 
+}
+
+type DownloadRequest struct {
+	ProjectId int    `json:"projectId"`
+	Path      string `json:"path"`
+}
+
+// TODO
+// body: filepath, project id
+// returns presigned url for download
+func GetS3Download(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+
+	var request DownloadRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "bad json"}`)
+		return
+	}
+
+	// check permission level
+	if getProjectPermissionByID(claims.Subject, request.ProjectId) < 1 {
+		fmt.Fprintf(w, `{
+			"status": "no permission"
+		}`)
+		return
+	}
+
+	query := UseQueries()
+	s3, err := generateS3Client()
+	if err != nil {
+		fmt.Println(err)
+		fmt.Fprintf(w, `{ "status": "issue connecting to s3" }`)
+		return
+	}
+
+	// get hash/s3key from filepath+projectid
+	hash, err := query.GetHash(ctx, sqlcgen.GetHashParams{Projectid: int64(request.ProjectId), Path: request.Path})
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error" }`)
+		return
+	}
+
+	// ping s3 for a presigned url
+	key, err := query.GetS3Key(ctx, hash)
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error"}`)
+		return
+	}
+
+	reqParams := make(url.Values)
+	url, err := s3.PresignedGetObject(ctx, os.Getenv("S3_BUCKETNAME"), key, time.Second*60*60*48, reqParams)
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "s3 error" }`)
+		return
+	}
+	fmt.Println("success url ", url)
+	fmt.Fprintf(w, `{
+		"status": "success",
+		"url": "%s"
+	}`, url)
 }

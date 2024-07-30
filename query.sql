@@ -105,3 +105,11 @@ VALUES (?, ?, ?, ?, ?);
 -- name: GetTeamByProject :one
 SELECT teamid FROM project
 WHERE projectid = ? LIMIT 1;
+
+-- name: GetS3Key :one
+SELECT s3key FROM block
+WHERE hash = ? LIMIT 1;
+
+-- name: GetHash :one
+SELECT hash FROM filerevision
+WHERE projectid = ? AND path = ? LIMIT 1;

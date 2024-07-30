@@ -397,3 +397,22 @@ func GetLatestCommit(w http.ResponseWriter, r *http.Request) {
 		"newestCommit": %d
 	}`, commit)
 }
+
+// TODO
+// projectId from path
+func GetProjectState(w http.ResponseWriter, r *http.Request) {
+	/*
+		ctx := context.Background()
+		claims, ok := clerk.SessionClaimsFromContext(r.Context())
+		if !ok {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"access": "unauthorized"}`))
+			return
+		}
+
+		// make sure we have permission to read the project
+
+		// get project state
+	*/
+
+}
