@@ -262,6 +262,41 @@ func (q *Queries) GetProjectInfo(ctx context.Context, projectid int64) (string, 
 	return title, err
 }
 
+const getProjectLivingFiles = `-- name: GetProjectLivingFiles :many
+SELECT a.frid, a.path FROM filerevision a
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+ON a.path = b.path AND a.frid = b.frid
+WHERE a.projectid = ? and changetype != 3
+`
+
+type GetProjectLivingFilesRow struct {
+	Frid int64
+	Path string
+}
+
+func (q *Queries) GetProjectLivingFiles(ctx context.Context, projectid int64) ([]GetProjectLivingFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getProjectLivingFiles, projectid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetProjectLivingFilesRow
+	for rows.Next() {
+		var i GetProjectLivingFilesRow
+		if err := rows.Scan(&i.Frid, &i.Path); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getProjectPermission = `-- name: GetProjectPermission :one
 SELECT level FROM projectpermission
 WHERE userid = ? AND projectid = ? LIMIT 1
@@ -277,6 +312,50 @@ func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermis
 	var level int64
 	err := row.Scan(&level)
 	return level, err
+}
+
+const getProjectState = `-- name: GetProjectState :many
+SELECT a.frid, a.path, a.commitid, a.hash, a.changetype FROM filerevision a
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+ON a.path = b.path AND a.frid = b.frid
+WHERE a.projectid = ?
+`
+
+type GetProjectStateRow struct {
+	Frid       int64
+	Path       string
+	Commitid   int64
+	Hash       string
+	Changetype int64
+}
+
+func (q *Queries) GetProjectState(ctx context.Context, projectid int64) ([]GetProjectStateRow, error) {
+	rows, err := q.db.QueryContext(ctx, getProjectState, projectid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetProjectStateRow
+	for rows.Next() {
+		var i GetProjectStateRow
+		if err := rows.Scan(
+			&i.Frid,
+			&i.Path,
+			&i.Commitid,
+			&i.Hash,
+			&i.Changetype,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getS3Key = `-- name: GetS3Key :one

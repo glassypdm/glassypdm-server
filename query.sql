@@ -113,3 +113,15 @@ WHERE hash = ? LIMIT 1;
 -- name: GetHash :one
 SELECT hash FROM filerevision
 WHERE projectid = ? AND path = ? LIMIT 1;
+
+-- name: GetProjectState :many
+SELECT a.frid, a.path, a.commitid, a.hash, a.changetype FROM filerevision a
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+ON a.path = b.path AND a.frid = b.frid
+WHERE a.projectid = ?;
+
+-- name: GetProjectLivingFiles :many
+SELECT a.frid, a.path FROM filerevision a
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+ON a.path = b.path AND a.frid = b.frid
+WHERE a.projectid = ? and changetype != 3;

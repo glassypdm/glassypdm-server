@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/clerk/clerk-sdk-go/v2"
+	"github.com/go-chi/chi/v5"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 )
 
@@ -398,21 +399,41 @@ func GetLatestCommit(w http.ResponseWriter, r *http.Request) {
 	}`, commit)
 }
 
-// TODO
-// projectId from path
 func GetProjectState(w http.ResponseWriter, r *http.Request) {
-	/*
-		ctx := context.Background()
-		claims, ok := clerk.SessionClaimsFromContext(r.Context())
-		if !ok {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"access": "unauthorized"}`))
-			return
-		}
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
 
-		// make sure we have permission to read the project
+	// make sure we have permission to read the project
+	projectIdStr := chi.URLParam(r, "projectId")
+	projectId, err := strconv.Atoi(projectIdStr)
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "incorrect format" }`)
+	}
 
-		// get project state
-	*/
+	if getProjectPermissionByID(claims.Subject, projectId) < 1 {
+		fmt.Fprintf(w, `{
+		"status": "no permission"
+		}`)
+		return
+	}
 
+	// get project state
+	query := UseQueries()
+
+	output, err := query.GetProjectState(ctx, int64(projectId))
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error" }`)
+		return
+	}
+
+	// TODO output and status success
+	fmt.Fprintf(w, `{
+		"status": "success",
+		"project": %v
+	}`, output)
 }
