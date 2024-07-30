@@ -431,9 +431,14 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO output and status success
+	outputjson, err := json.Marshal(output)
+	if err != nil {
+		fmt.Fprintf(w, `{ "status": "db error" }`)
+		return
+	}
+
 	fmt.Fprintf(w, `{
 		"status": "success",
-		"project": %v
-	}`, output)
+		"project": %s
+	}`, string(outputjson))
 }

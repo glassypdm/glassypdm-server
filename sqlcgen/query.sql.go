@@ -15,8 +15,8 @@ WHERE teamid = ? and title=? LIMIT 1
 `
 
 type CheckProjectNameParams struct {
-	Teamid int64
-	Title  string
+	Teamid int64  `json:"teamid"`
+	Title  string `json:"title"`
 }
 
 func (q *Queries) CheckProjectName(ctx context.Context, arg CheckProjectNameParams) (int64, error) {
@@ -127,8 +127,8 @@ WHERE tp.userid = ? AND tp.level >= 2
 `
 
 type FindUserManagedTeamsRow struct {
-	Teamid int64
-	Name   string
+	Teamid int64  `json:"teamid"`
+	Name   string `json:"name"`
 }
 
 func (q *Queries) FindUserManagedTeams(ctx context.Context, userid string) ([]FindUserManagedTeamsRow, error) {
@@ -160,9 +160,9 @@ WHERE project.teamid = ?
 `
 
 type FindUserProjectsRow struct {
-	Projectid int64
-	Title     string
-	Name      string
+	Projectid int64  `json:"projectid"`
+	Title     string `json:"title"`
+	Name      string `json:"name"`
 }
 
 func (q *Queries) FindUserProjects(ctx context.Context, teamid int64) ([]FindUserProjectsRow, error) {
@@ -194,8 +194,8 @@ WHERE tp.userid = ?
 `
 
 type FindUserTeamsRow struct {
-	Teamid int64
-	Name   string
+	Teamid int64  `json:"teamid"`
+	Name   string `json:"name"`
 }
 
 func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]FindUserTeamsRow, error) {
@@ -227,8 +227,8 @@ WHERE projectid = ? AND path = ? LIMIT 1
 `
 
 type GetHashParams struct {
-	Projectid int64
-	Path      string
+	Projectid int64  `json:"projectid"`
+	Path      string `json:"path"`
 }
 
 func (q *Queries) GetHash(ctx context.Context, arg GetHashParams) (string, error) {
@@ -270,8 +270,8 @@ WHERE a.projectid = ? and changetype != 3
 `
 
 type GetProjectLivingFilesRow struct {
-	Frid int64
-	Path string
+	Frid int64  `json:"frid"`
+	Path string `json:"path"`
 }
 
 func (q *Queries) GetProjectLivingFiles(ctx context.Context, projectid int64) ([]GetProjectLivingFilesRow, error) {
@@ -303,8 +303,8 @@ WHERE userid = ? AND projectid = ? LIMIT 1
 `
 
 type GetProjectPermissionParams struct {
-	Userid    string
-	Projectid int64
+	Userid    string `json:"userid"`
+	Projectid int64  `json:"projectid"`
 }
 
 func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermissionParams) (int64, error) {
@@ -322,11 +322,11 @@ WHERE a.projectid = ?
 `
 
 type GetProjectStateRow struct {
-	Frid       int64
-	Path       string
-	Commitid   int64
-	Hash       string
-	Changetype int64
+	Frid       int64  `json:"frid"`
+	Path       string `json:"path"`
+	Commitid   int64  `json:"commitid"`
+	Hash       string `json:"hash"`
+	Changetype int64  `json:"changetype"`
 }
 
 func (q *Queries) GetProjectState(ctx context.Context, projectid int64) ([]GetProjectStateRow, error) {
@@ -400,8 +400,8 @@ WHERE teamid = ?
 `
 
 type GetTeamMembershipRow struct {
-	Userid string
-	Level  int64
+	Userid string `json:"userid"`
+	Level  int64  `json:"level"`
 }
 
 func (q *Queries) GetTeamMembership(ctx context.Context, teamid int64) ([]GetTeamMembershipRow, error) {
@@ -446,8 +446,8 @@ LIMIT 1
 `
 
 type GetTeamPermissionParams struct {
-	Teamid int64
-	Userid string
+	Teamid int64  `json:"teamid"`
+	Userid string `json:"userid"`
 }
 
 func (q *Queries) GetTeamPermission(ctx context.Context, arg GetTeamPermissionParams) (int64, error) {
@@ -476,10 +476,10 @@ RETURNING commitid
 `
 
 type InsertCommitParams struct {
-	Projectid int64
-	Userid    string
-	Comment   interface{}
-	Numfiles  int64
+	Projectid int64       `json:"projectid"`
+	Userid    string      `json:"userid"`
+	Comment   interface{} `json:"comment"`
+	Numfiles  int64       `json:"numfiles"`
 }
 
 func (q *Queries) InsertCommit(ctx context.Context, arg InsertCommitParams) (int64, error) {
@@ -500,8 +500,8 @@ VALUES (?, ?)
 `
 
 type InsertFileParams struct {
-	Projectid int64
-	Path      string
+	Projectid int64  `json:"projectid"`
+	Path      string `json:"path"`
 }
 
 func (q *Queries) InsertFile(ctx context.Context, arg InsertFileParams) error {
@@ -515,11 +515,11 @@ VALUES (?, ?, ?, ?, ?)
 `
 
 type InsertFileRevisionParams struct {
-	Projectid  int64
-	Path       string
-	Commitid   int64
-	Hash       string
-	Changetype int64
+	Projectid  int64  `json:"projectid"`
+	Path       string `json:"path"`
+	Commitid   int64  `json:"commitid"`
+	Hash       string `json:"hash"`
+	Changetype int64  `json:"changetype"`
 }
 
 func (q *Queries) InsertFileRevision(ctx context.Context, arg InsertFileRevisionParams) error {
@@ -539,9 +539,9 @@ VALUES (?, ?, ?)
 `
 
 type InsertHashParams struct {
-	Hash  string
-	S3key string
-	Size  int64
+	Hash  string `json:"hash"`
+	S3key string `json:"s3key"`
+	Size  int64  `json:"size"`
 }
 
 func (q *Queries) InsertHash(ctx context.Context, arg InsertHashParams) error {
@@ -556,8 +556,8 @@ RETURNING projectid
 `
 
 type InsertProjectParams struct {
-	Title  string
-	Teamid int64
+	Title  string `json:"title"`
+	Teamid int64  `json:"teamid"`
 }
 
 func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) (int64, error) {
@@ -587,9 +587,9 @@ RETURNING userid, teamid, level
 `
 
 type SetTeamPermissionParams struct {
-	Userid string
-	Teamid int64
-	Level  int64
+	Userid string `json:"userid"`
+	Teamid int64  `json:"teamid"`
+	Level  int64  `json:"level"`
 }
 
 func (q *Queries) SetTeamPermission(ctx context.Context, arg SetTeamPermissionParams) (Teampermission, error) {
