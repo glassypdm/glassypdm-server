@@ -112,7 +112,7 @@ WHERE hash = ? LIMIT 1;
 
 -- name: GetHash :one
 SELECT hash FROM filerevision
-WHERE projectid = ? AND path = ? LIMIT 1;
+WHERE projectid = ? AND path = ? AND commitid = ? LIMIT 1;
 
 -- name: GetProjectState :many
 SELECT a.frid, a.path, a.commitid, a.hash, a.changetype FROM filerevision a

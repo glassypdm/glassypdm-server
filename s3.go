@@ -146,6 +146,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 type DownloadRequest struct {
 	ProjectId int    `json:"projectId"`
 	Path      string `json:"path"`
+	CommitId  int    `json:"commitId"`
 }
 
 // TODO
@@ -184,7 +185,13 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get hash/s3key from filepath+projectid
-	hash, err := query.GetHash(ctx, sqlcgen.GetHashParams{Projectid: int64(request.ProjectId), Path: request.Path})
+	hash, err := query.GetHash(ctx,
+		sqlcgen.GetHashParams{
+			Projectid: int64(request.ProjectId),
+			Path:      request.Path,
+			Commitid:  int64(request.CommitId),
+		})
+
 	if err != nil {
 		fmt.Fprintf(w, `{ "status": "db error" }`)
 		return

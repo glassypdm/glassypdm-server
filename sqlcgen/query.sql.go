@@ -223,16 +223,17 @@ func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]FindUserT
 
 const getHash = `-- name: GetHash :one
 SELECT hash FROM filerevision
-WHERE projectid = ? AND path = ? LIMIT 1
+WHERE projectid = ? AND path = ? AND commitid = ? LIMIT 1
 `
 
 type GetHashParams struct {
 	Projectid int64  `json:"projectid"`
 	Path      string `json:"path"`
+	Commitid  int64  `json:"commitid"`
 }
 
 func (q *Queries) GetHash(ctx context.Context, arg GetHashParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, getHash, arg.Projectid, arg.Path)
+	row := q.db.QueryRowContext(ctx, getHash, arg.Projectid, arg.Path, arg.Commitid)
 	var hash string
 	err := row.Scan(&hash)
 	return hash, err
