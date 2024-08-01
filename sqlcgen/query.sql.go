@@ -316,10 +316,10 @@ func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermis
 }
 
 const getProjectState = `-- name: GetProjectState :many
-SELECT a.frid, a.path, a.commitid, a.hash, a.changetype FROM filerevision a
+SELECT a.frid, a.path, a.commitid, a.hash, a.changetype, block.size FROM block, filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
-WHERE a.projectid = ?
+WHERE a.projectid = ? AND a.hash = block.hash
 `
 
 type GetProjectStateRow struct {
@@ -328,6 +328,7 @@ type GetProjectStateRow struct {
 	Commitid   int64  `json:"commitid"`
 	Hash       string `json:"hash"`
 	Changetype int64  `json:"changetype"`
+	Size       int64  `json:"size"`
 }
 
 func (q *Queries) GetProjectState(ctx context.Context, projectid int64) ([]GetProjectStateRow, error) {
@@ -345,6 +346,7 @@ func (q *Queries) GetProjectState(ctx context.Context, projectid int64) ([]GetPr
 			&i.Commitid,
 			&i.Hash,
 			&i.Changetype,
+			&i.Size,
 		); err != nil {
 			return nil, err
 		}

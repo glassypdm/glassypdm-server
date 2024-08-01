@@ -115,10 +115,10 @@ SELECT hash FROM filerevision
 WHERE projectid = ? AND path = ? AND commitid = ? LIMIT 1;
 
 -- name: GetProjectState :many
-SELECT a.frid, a.path, a.commitid, a.hash, a.changetype FROM filerevision a
+SELECT a.frid, a.path, a.commitid, a.hash, a.changetype, block.size FROM block, filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
-WHERE a.projectid = ?;
+WHERE a.projectid = ? AND a.hash = block.hash;
 
 -- name: GetProjectLivingFiles :many
 SELECT a.frid, a.path FROM filerevision a
