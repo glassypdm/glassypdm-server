@@ -210,9 +210,11 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{ "status": "s3 error" }`)
 		return
 	}
-	fmt.Println("success url ", url)
+	//fmt.Println("success url ", url)
 	fmt.Fprintf(w, `{
 		"status": "success",
-		"url": "%s"
-	}`, url)
+		"rel_path": %q,
+		"commitId": %d,
+		"url": %q
+	}`, request.Path, request.CommitId, url)
 }
