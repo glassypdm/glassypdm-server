@@ -144,9 +144,9 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 type DownloadRequest struct {
-	ProjectId int    `json:"projectId"`
+	ProjectId int    `json:"project_id"`
 	Path      string `json:"path"`
-	CommitId  int    `json:"commitId"`
+	CommitId  int    `json:"commit_id"`
 }
 
 // TODO
