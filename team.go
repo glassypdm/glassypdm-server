@@ -238,7 +238,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userId := claims.Subject
-	teamIdStr := chi.URLParam(r, "teamId")
+	teamIdStr := chi.URLParam(r, "team-id")
 	teamId, err := strconv.Atoi(teamIdStr)
 	if err != nil {
 		fmt.Fprintf(w, `{ "status": "incorrect format" }`)

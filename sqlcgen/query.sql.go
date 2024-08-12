@@ -7,6 +7,7 @@ package sqlcgen
 
 import (
 	"context"
+	"database/sql"
 )
 
 const checkProjectName = `-- name: CheckProjectName :one
@@ -21,6 +22,19 @@ type CheckProjectNameParams struct {
 
 func (q *Queries) CheckProjectName(ctx context.Context, arg CheckProjectNameParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, checkProjectName, arg.Teamid, arg.Title)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countProjectCommits = `-- name: CountProjectCommits :one
+SELECT COUNT(commitid) FROM 'commit'
+WHERE projectid = ?
+LIMIT 1
+`
+
+func (q *Queries) CountProjectCommits(ctx context.Context, projectid int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProjectCommits, projectid)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -219,6 +233,69 @@ func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]FindUserT
 		return nil, err
 	}
 	return items, nil
+}
+
+const getCommitInfo = `-- name: GetCommitInfo :one
+SELECT
+  a.cno,
+  a.userid,
+  a.timestamp,
+  a.comment,
+  a.numfiles,
+  hehe.path,
+  hehe.frno,
+  hehe.hash,
+  hehe.size
+FROM
+  'commit' a
+  INNER JOIN (
+    SELECT
+      b.hash,
+      b.size,
+      fr.path,
+      fr.frno,
+      fr.commitid
+    FROM
+      filerevision fr
+      INNER JOIN block b ON fr.hash = b.hash
+    WHERE fr.commitid = ?
+  ) hehe ON a.commitid = hehe.commitid
+WHERE
+  a.commitid = ? LIMIT 1
+`
+
+type GetCommitInfoParams struct {
+	Commitid   int64 `json:"commitid"`
+	Commitid_2 int64 `json:"commitid_2"`
+}
+
+type GetCommitInfoRow struct {
+	Cno       sql.NullInt64 `json:"cno"`
+	Userid    string        `json:"userid"`
+	Timestamp int64         `json:"timestamp"`
+	Comment   string        `json:"comment"`
+	Numfiles  int64         `json:"numfiles"`
+	Path      string        `json:"path"`
+	Frno      sql.NullInt64 `json:"frno"`
+	Hash      string        `json:"hash"`
+	Size      int64         `json:"size"`
+}
+
+func (q *Queries) GetCommitInfo(ctx context.Context, arg GetCommitInfoParams) (GetCommitInfoRow, error) {
+	row := q.db.QueryRowContext(ctx, getCommitInfo, arg.Commitid, arg.Commitid_2)
+	var i GetCommitInfoRow
+	err := row.Scan(
+		&i.Cno,
+		&i.Userid,
+		&i.Timestamp,
+		&i.Comment,
+		&i.Numfiles,
+		&i.Path,
+		&i.Frno,
+		&i.Hash,
+		&i.Size,
+	)
+	return i, err
 }
 
 const getHash = `-- name: GetHash :one
@@ -479,10 +556,10 @@ RETURNING commitid
 `
 
 type InsertCommitParams struct {
-	Projectid int64       `json:"projectid"`
-	Userid    string      `json:"userid"`
-	Comment   interface{} `json:"comment"`
-	Numfiles  int64       `json:"numfiles"`
+	Projectid int64  `json:"projectid"`
+	Userid    string `json:"userid"`
+	Comment   string `json:"comment"`
+	Numfiles  int64  `json:"numfiles"`
 }
 
 func (q *Queries) InsertCommit(ctx context.Context, arg InsertCommitParams) (int64, error) {
@@ -581,6 +658,57 @@ func (q *Queries) InsertTeam(ctx context.Context, name string) (int64, error) {
 	var teamid int64
 	err := row.Scan(&teamid)
 	return teamid, err
+}
+
+const listProjectCommits = `-- name: ListProjectCommits :many
+SELECT cno, numfiles, userid, comment, commitid, timestamp FROM 'commit'
+WHERE projectid = ?
+ORDER BY commitid DESC
+LIMIT 5 OFFSET ?
+`
+
+type ListProjectCommitsParams struct {
+	Projectid int64 `json:"projectid"`
+	Offset    int64 `json:"offset"`
+}
+
+type ListProjectCommitsRow struct {
+	Cno       sql.NullInt64 `json:"cno"`
+	Numfiles  int64         `json:"numfiles"`
+	Userid    string        `json:"userid"`
+	Comment   string        `json:"comment"`
+	Commitid  int64         `json:"commitid"`
+	Timestamp int64         `json:"timestamp"`
+}
+
+func (q *Queries) ListProjectCommits(ctx context.Context, arg ListProjectCommitsParams) ([]ListProjectCommitsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProjectCommits, arg.Projectid, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProjectCommitsRow
+	for rows.Next() {
+		var i ListProjectCommitsRow
+		if err := rows.Scan(
+			&i.Cno,
+			&i.Numfiles,
+			&i.Userid,
+			&i.Comment,
+			&i.Commitid,
+			&i.Timestamp,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setTeamPermission = `-- name: SetTeamPermission :one

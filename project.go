@@ -180,22 +180,31 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	team, err := query.GetTeamFromProject(ctx, int64(pid))
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+		fmt.Println(err.Error())
+		fmt.Fprintf(w, `{ "status": "dgb error", "db": "%s" }`, err.Error())
 		return
 	}
 	teamName, err := query.GetTeamName(ctx, team)
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+		fmt.Println(err.Error())
+		fmt.Fprintf(w, `{ "status": "rdb error", "db": "%s" }`, err.Error())
 		return
 	}
 	cid, err := query.FindProjectInitCommit(ctx, int64(pid))
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
-		return
+		fmt.Println(err.Error())
+		if err.Error() == "sql: no rows in result set" {
+			cid = -1
+		} else {
+			fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+			return
+		}
+
 	}
 
 	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: claims.Subject})
 	if err != nil {
+		fmt.Println("gtp")
 		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
 		return
 	}
@@ -251,154 +260,6 @@ func getProjectPermissionByID(userId string, projectId int) int {
 	return int(level)
 }
 
-/*
-*
-body:
-- projectid, teamid
-- CreateCommit msg
-- files: [
-{
-filepath
-hash
-changetype
-}
-]
-*/
-func CreateCommit(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"access": "unauthorized"}`))
-		return
-	}
-	userId := claims.Subject
-	var request CommitRequest
-	err := json.NewDecoder(r.Body).Decode(&request)
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "bad json" }`)
-		return
-	}
-
-	// check permission
-	projectPermission := getProjectPermissionByID(userId, request.ProjectId)
-	if projectPermission < 2 {
-		fmt.Fprintf(w, `{ "response": "no permission" }`)
-		return
-	}
-
-	tx, qtx := useTxQueries()
-	defer tx.Rollback()
-	// make commit, get new commitid
-	cid, err := qtx.InsertCommit(ctx, sqlcgen.InsertCommitParams{
-		Projectid: int64(request.ProjectId),
-		Userid:    userId,
-		Comment:   request.Message,
-		Numfiles:  int64(len(request.Files))})
-
-	// FIXME if we create a new file entry
-	// we don't see it when we have a filerevision
-	var hashesMissing []string
-	for _, file := range request.Files {
-		_ = file
-		// insert into file
-		err = qtx.InsertFile(ctx, sqlcgen.InsertFileParams{Projectid: int64(request.ProjectId), Path: file.Path})
-		if err != nil {
-			// TODO do we need to handle anything here?
-			fmt.Println("uwuwuwu")
-
-			fmt.Printf("err: %v\n", err)
-		}
-
-		// add filerevision
-		// error if we fail a unique thing (hopefully)
-		err = qtx.InsertFileRevision(ctx, sqlcgen.InsertFileRevisionParams{
-			Projectid:  int64(request.ProjectId),
-			Path:       file.Path,
-			Commitid:   cid,
-			Hash:       file.Hash,
-			Changetype: int64(file.ChangeType)})
-		if err != nil {
-			// TODO confirm error
-			fmt.Printf("error %v\n", err)
-			hashesMissing = append(hashesMissing, file.Hash)
-			continue
-		}
-
-	}
-	if len(hashesMissing) > 0 {
-		// respond with nb
-		fmt.Fprintf(w, `
-			{
-			"status": "nb",
-			"hashes": %v
-			}`, hashesMissing)
-		return
-	}
-
-	// no hashes missing, so commit the transaction
-	// we should consider returning more info too
-	tx.Commit()
-	fmt.Fprintf(w, `{
-	"status": "success",
-	"commitid": %v
-	}`, cid)
-}
-
-// given a project id, returns the newest commit id used
-func GetLatestCommit(w http.ResponseWriter, r *http.Request) {
-	claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"access": "unauthorized"}`))
-		return
-	}
-	userId := claims.Subject
-	project := r.URL.Query().Get("projectId")
-	pid, err := strconv.Atoi(project)
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
-		return
-	}
-
-	db := CreateDB()
-	defer db.Close()
-
-	// check user permissions
-	// needs at least read permission
-	rows, err := db.Query("SELECT COUNT(*) FROM teampermission WHERE userid = ?", userId)
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "database issue" }`)
-		return
-	}
-	var count int
-	for rows.Next() {
-		if err := rows.Scan(&count); err != nil {
-			fmt.Fprintf(w, `{ "response": "database issue" }`)
-			return
-		}
-	}
-	if count < 1 {
-		fmt.Fprintf(w, `{ "response": "invalid permission" }`)
-	}
-
-	// get latest commit for pid
-	rows, err = db.Query("SELECT MAX(cid) FROM 'commit' WHERE projectid = ?", pid)
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "database issue" }`)
-		return
-	}
-	var commit int
-	for rows.Next() {
-		rows.Scan(&commit)
-	}
-	fmt.Fprintf(w, `
-	{
-		"response": "valid",
-		"newestCommit": %d
-	}`, commit)
-}
-
 func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -409,7 +270,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// make sure we have permission to read the project
-	projectIdStr := chi.URLParam(r, "projectId")
+	projectIdStr := chi.URLParam(r, "project-id")
 	projectId, err := strconv.Atoi(projectIdStr)
 	if err != nil {
 		fmt.Fprintf(w, `{ "status": "incorrect format" }`)

@@ -18,7 +18,7 @@ type Commit struct {
 	Commitid  int64         `json:"commitid"`
 	Projectid int64         `json:"projectid"`
 	Userid    string        `json:"userid"`
-	Comment   interface{}   `json:"comment"`
+	Comment   string        `json:"comment"`
 	Numfiles  int64         `json:"numfiles"`
 	Cno       sql.NullInt64 `json:"cno"`
 	Timestamp int64         `json:"timestamp"`

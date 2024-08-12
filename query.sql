@@ -125,3 +125,42 @@ SELECT a.frid, a.path FROM filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
 WHERE a.projectid = ? and changetype != 3;
+
+-- name: ListProjectCommits :many
+SELECT cno, numfiles, userid, comment, commitid, timestamp FROM 'commit'
+WHERE projectid = ?
+ORDER BY commitid DESC
+LIMIT 5 OFFSET ?;
+
+-- name: CountProjectCommits :one
+SELECT COUNT(commitid) FROM 'commit'
+WHERE projectid = ?
+LIMIT 1;
+
+-- name: GetCommitInfo :one
+SELECT
+  a.cno,
+  a.userid,
+  a.timestamp,
+  a.comment,
+  a.numfiles,
+  hehe.path,
+  hehe.frno,
+  hehe.hash,
+  hehe.size
+FROM
+  'commit' a
+  INNER JOIN (
+    SELECT
+      b.hash,
+      b.size,
+      fr.path,
+      fr.frno,
+      fr.commitid
+    FROM
+      filerevision fr
+      INNER JOIN block b ON fr.hash = b.hash
+    WHERE fr.commitid = ?
+  ) hehe ON a.commitid = hehe.commitid
+WHERE
+  a.commitid = ? LIMIT 1;

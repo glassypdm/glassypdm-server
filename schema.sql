@@ -36,10 +36,10 @@ CREATE TABLE IF NOT EXISTS 'commit'(
     commitid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     projectid INTEGER NOT NULL,
     userid TEXT NOT NULL,
-    comment TEXT NOT NULL DEFAULT "",
+    comment TEXT NOT NULL,
     numfiles INTEGER NOT NULL,
     cno INTEGER,
-    timestamp INTEGER DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    timestamp INTEGER DEFAULT (strftime('%s','now')) NOT NULL,
     FOREIGN KEY(projectid) REFERENCES project(projectid)
 );
 
