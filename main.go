@@ -39,7 +39,7 @@ func main() {
 		w.Write([]byte("Hello"))
 	})
 	r.Get("/version", getVersion)
-	r.Get("/daijin-config", getConfig)
+	r.Get("/client-config", getConfig)
 
 	// Clerk-protected routes
 	r.Group(func(r chi.Router) {
