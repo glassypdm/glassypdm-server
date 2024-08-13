@@ -1,4 +1,4 @@
-# daijinCAD-server
+# glassypdm-server
 more docs TODO
 ## Build Instructions
 Prerequisites:
@@ -13,7 +13,7 @@ sqlc generate
 go build
 
 :: run the executable
-daijincad-server.exe
+glassypdm-server.exe
 ```
 ## License
 AGPL
