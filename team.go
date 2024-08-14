@@ -101,7 +101,7 @@ func checkPermissionByID(teamid int, userid string) int {
 
 	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(teamid), Userid: userid})
 	if err != nil {
-		return -1
+		return 0
 	}
 	return int(permission)
 }
