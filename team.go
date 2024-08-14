@@ -138,7 +138,7 @@ func GetPermission(w http.ResponseWriter, r *http.Request) {
 
 type PermissionRequest struct {
 	Email  string `json:"email"`
-	TeamId int    `json:"teamId"`
+	TeamId int    `json:"team_id"`
 	Level  int    `json:"level"`
 }
 
@@ -159,7 +159,7 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		fmt.Println(err)
-		fmt.Fprintf(w, `{ "status": "incorrect format" }`)
+		PrintError(w, "incorrect format")
 		return
 	}
 	user := req.Email // the user to set a permission for
@@ -168,17 +168,23 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 
 	setterPermission := checkPermissionByID(teamId, setterId)
 	userPermisssion := checkPermissionByEmail(user, teamId)
+	if userPermisssion == -2 {
+		PrintError(w, "user does not exist")
+		return
+	} else if userPermisssion == -1 || setterPermission == -1 {
+		PrintError(w, "generic error")
+	}
 
 	// check if user has permission to set permissions
 	// if person to set has a higher permission level than user, error out, or if proposed permission is higher
 	if setterPermission < 2 {
-		fmt.Fprintf(w, ` { "status": "Insufficient permission" }`)
+		PrintError(w, "insufficient permission")
 		return
 	} else if userPermisssion >= setterPermission {
-		fmt.Fprintf(w, `{ "status": "invalid permission" }`)
+		PrintError(w, "invalid permission")
 		return
 	} else if proposedPermission >= setterPermission {
-		fmt.Fprintf(w, `{ "status": "Insufficient permission" }`)
+		PrintError(w, "insufficient permission")
 		return
 	}
 	userID := getUserIDByEmail(user)
@@ -193,11 +199,11 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 		_, err = query.DeleteTeamPermission(ctx, userID)
 	}
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db" }`)
+		PrintError(w, "db error")
 		fmt.Println(err)
 		return
 	}
-	fmt.Fprintf(w, `{ "status": "valid" }`)
+	PrintSuccess(w, "valid")
 }
 
 func GetTeamForUser(w http.ResponseWriter, r *http.Request) {
