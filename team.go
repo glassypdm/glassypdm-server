@@ -173,6 +173,7 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if userPermisssion == -1 || setterPermission == -1 {
 		PrintError(w, "generic error")
+		return
 	}
 
 	// check if user has permission to set permissions
