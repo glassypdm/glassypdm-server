@@ -60,8 +60,8 @@ func InitDB() *sql.DB {
 var ddl string
 
 func UseQueries() *sqlcgen.Queries {
-	ctx := context.Background()
-	conn, _ := db_pool.Conn(ctx)
+	//ctx := context.Background()
+	//conn, _ := db_pool.Conn(ctx)
 	// ensure schema.sql matches with what
 	// is actually in the database
 	/*
@@ -74,7 +74,7 @@ func UseQueries() *sqlcgen.Queries {
 		}
 	*/
 
-	queries := sqlcgen.New(conn)
+	queries := sqlcgen.New(&db_pool)
 	return queries
 }
 
