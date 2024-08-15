@@ -291,6 +291,10 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{ "status": "db error" }`)
 		return
 	}
+	fmt.Println(output)
+	if len(output) == 0 {
+		fmt.Println("empty")
+	}
 
 	outputjson, err := json.Marshal(output)
 	if err != nil {
@@ -300,6 +304,6 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, `{
 		"status": "success",
-		"project": %s
+		"project": %v
 	}`, string(outputjson))
 }
