@@ -44,7 +44,9 @@ func getConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(data)
 }
 
-func CreateDB() *sql.DB {
+var db_pool sql.DB
+
+func InitDB() *sql.DB {
 	dburl := os.Getenv("TURSO_DATABASE_URL") + "?authToken=" + os.Getenv("TURSO_AUTH_TOKEN")
 	db, err := sql.Open("libsql", dburl)
 	if err != nil {
@@ -58,9 +60,8 @@ func CreateDB() *sql.DB {
 var ddl string
 
 func UseQueries() *sqlcgen.Queries {
-	//ctx := context.Background()
-	db := CreateDB()
-
+	ctx := context.Background()
+	conn, _ := db_pool.Conn(ctx)
 	// ensure schema.sql matches with what
 	// is actually in the database
 	/*
@@ -73,17 +74,15 @@ func UseQueries() *sqlcgen.Queries {
 		}
 	*/
 
-	queries := sqlcgen.New(db)
+	queries := sqlcgen.New(conn)
 	return queries
 }
 
 func useTxQueries() (*sql.Tx, *sqlcgen.Queries) {
 	//ctx := context.Background()
-	db := CreateDB()
+	tx, _ := db_pool.Begin()
 
-	tx, _ := db.Begin()
-
-	qtx := sqlcgen.New(db).WithTx(tx)
+	qtx := sqlcgen.New(&db_pool).WithTx(tx)
 	return tx, qtx
 }
 

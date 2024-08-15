@@ -21,6 +21,7 @@ func main() {
 
 	clerk.SetKey(os.Getenv("CLERK_SECRETKEY"))
 
+	db_pool = *InitDB()
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
@@ -48,7 +49,6 @@ func main() {
 		r.Post("/permission", SetPermission)
 		r.Post("/store/request", HandleUpload)
 		r.Post("/commit", CreateCommit)
-		r.Get("/commit/latest/by-project/{project-id}", GetLatestCommit)
 		r.Get("/commit/select/by-project/{project-id}", GetCommits)
 		r.Post("/project", CreateProject)
 		r.Get("/project/info", GetProjectInfo)

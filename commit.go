@@ -110,60 +110,6 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	}`, cid)
 }
 
-// given a project id, returns the newest commit id used
-func GetLatestCommit(w http.ResponseWriter, r *http.Request) {
-	claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"access": "unauthorized"}`))
-		return
-	}
-	userId := claims.Subject
-	project := r.URL.Query().Get("project-id")
-	pid, err := strconv.Atoi(project)
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
-		return
-	}
-
-	db := CreateDB()
-	defer db.Close()
-
-	// check user permissions
-	// needs at least read permission
-	rows, err := db.Query("SELECT COUNT(*) FROM teampermission WHERE userid = ?", userId)
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "database issue" }`)
-		return
-	}
-	var count int
-	for rows.Next() {
-		if err := rows.Scan(&count); err != nil {
-			fmt.Fprintf(w, `{ "response": "database issue" }`)
-			return
-		}
-	}
-	if count < 1 {
-		fmt.Fprintf(w, `{ "response": "invalid permission" }`)
-	}
-
-	// get latest commit for pid
-	rows, err = db.Query("SELECT MAX(cid) FROM 'commit' WHERE projectid = ?", pid)
-	if err != nil {
-		fmt.Fprintf(w, `{ "response": "database issue" }`)
-		return
-	}
-	var commit int
-	for rows.Next() {
-		rows.Scan(&commit)
-	}
-	fmt.Fprintf(w, `
-	{
-		"response": "valid",
-		"newestCommit": %d
-	}`, commit)
-}
-
 // input: query offset=<number>
 // returns:
 // {
