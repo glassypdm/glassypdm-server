@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/clerk/clerk-sdk-go/v2"
@@ -91,13 +92,15 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	tee := io.TeeReader(file, hasher)
 
 	// check if object exists in S3 already
-	_, err = queries.FindHash(ctx, hashUser)
+	err = queries.InsertHash(ctx, sqlcgen.InsertHashParams{Hash: hashUser, S3key: hashUser, Size: size})
 	if err != nil {
 		fmt.Println(err)
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			fmt.Println("hehe duplicate")
+			fmt.Fprintf(w, `{ "status": "duplicate" }`)
+			return
+		}
 		//fmt.Fprintf(w, `{ "status": "db error" }`)
-	} else {
-		fmt.Fprintf(w, `{ "status": "hash exists already" }`)
-		return
 	}
 
 	// insert object into S3
@@ -130,14 +133,11 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 			hashUser,
 			minio.RemoveObjectOptions{})
 
+		queries.RemoveHash(ctx, hashUser)
 		return
 	} else {
 		fmt.Println("hash ok")
-		// hash matches; so insert entry into database
-		err = queries.InsertHash(ctx, sqlcgen.InsertHashParams{Hash: hashUser, S3key: hashUser, Size: size})
-		if err != nil {
-			fmt.Fprintf(w, `{ "status": "db error" }`)
-		}
+
 	}
 	fmt.Fprintf(w, `{ "status": "success" }`)
 

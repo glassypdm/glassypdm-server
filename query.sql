@@ -94,6 +94,9 @@ LIMIT 1;
 INSERT INTO block(hash, s3key, size)
 VALUES (?, ?, ?);
 
+-- name: RemoveHash :exec
+DELETE FROM block WHERE hash = ?;
+
 -- name: InsertFile :exec
 INSERT INTO file(projectid, path)
 VALUES (?, ?);

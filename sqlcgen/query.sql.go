@@ -711,6 +711,15 @@ func (q *Queries) ListProjectCommits(ctx context.Context, arg ListProjectCommits
 	return items, nil
 }
 
+const removeHash = `-- name: RemoveHash :exec
+DELETE FROM block WHERE hash = ?
+`
+
+func (q *Queries) RemoveHash(ctx context.Context, hash string) error {
+	_, err := q.db.ExecContext(ctx, removeHash, hash)
+	return err
+}
+
 const setTeamPermission = `-- name: SetTeamPermission :one
 INSERT INTO teampermission(userid, teamid, level)
 VALUES(?, ?, ?) ON CONFLICT(userid, teamid) DO UPDATE SET level=excluded.level

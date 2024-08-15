@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
@@ -81,10 +82,12 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 			Hash:       file.Hash,
 			Changetype: int64(file.ChangeType)})
 		if err != nil {
-			// TODO confirm error
-			fmt.Printf("error %v\n", err)
-			hashesMissing = append(hashesMissing, file.Hash)
-			continue
+			if strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+				hashesMissing = append(hashesMissing, file.Hash)
+				continue
+			} else {
+				fmt.Printf("error %v\n", err)
+			}
 		}
 
 	}
@@ -93,7 +96,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `
 			{
 			"status": "nb",
-			"hashes": %v
+			"hashes": "%v"
 			}`, hashesMissing)
 		return
 	}

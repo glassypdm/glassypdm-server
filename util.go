@@ -58,18 +58,20 @@ func CreateDB() *sql.DB {
 var ddl string
 
 func UseQueries() *sqlcgen.Queries {
-	ctx := context.Background()
+	//ctx := context.Background()
 	db := CreateDB()
 
 	// ensure schema.sql matches with what
 	// is actually in the database
-	_, err := db.ExecContext(ctx, ddl)
-	if err != nil {
-		//fmt.Println(ddl)
-		fmt.Printf("err: %v\n", err)
-		fmt.Println("oof db")
-		os.Exit(1)
-	}
+	/*
+		_, err := db.ExecContext(ctx, ddl)
+		if err != nil {
+			//fmt.Println(ddl)
+			fmt.Printf("err: %v\n", err)
+			fmt.Println("oof db")
+			os.Exit(1)
+		}
+	*/
 
 	queries := sqlcgen.New(db)
 	return queries
