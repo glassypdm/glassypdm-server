@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS filerevision(
     hash TEXT NOT NULL,
     frno INTEGER,
     changetype INTEGER NOT NULL,
-    FOREIGN KEY(path, projectid) REFERENCES file(path, projectid),
     FOREIGN KEY(projectid) REFERENCES project(projectid),
     FOREIGN KEY(commitid) REFERENCES 'commit'(commitid),
     FOREIGN KEY(hash) REFERENCES block(hash)
@@ -75,4 +74,8 @@ END;
 
 CREATE TRIGGER IF NOT EXISTS frnumber AFTER INSERT ON filerevision BEGIN
 UPDATE filerevision SET frno = (SELECT COUNT(*) FROM filerevision WHERE path = NEW.path AND projectid = NEW.projectid) WHERE frid = NEW.frid;
+END;
+
+CREATE TRIGGER IF NOT EXISTS crfile AFTER INSERT ON filerevision BEGIN
+INSERT INTO file(projectid, path) VALUES (NEW.projectid, NEW.path);
 END;

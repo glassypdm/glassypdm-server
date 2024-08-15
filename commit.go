@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
@@ -35,6 +36,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"access": "unauthorized"}`))
 		return
 	}
+	fmt.Println("creating commit..")
 	userId := claims.Subject
 	var request CommitRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
@@ -49,6 +51,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{ "response": "no permission" }`)
 		return
 	}
+	start := time.Now()
 
 	tx, qtx := useTxQueries()
 	defer tx.Rollback()
@@ -58,23 +61,20 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		Userid:    userId,
 		Comment:   request.Message,
 		Numfiles:  int64(len(request.Files))})
+	if err != nil {
+		fmt.Println("error creating commit")
+		fmt.Fprintf(w, `
+		{
+		"status": "error"
+		}`)
+		return
+	}
 
-	// FIXME if we create a new file entry
-	// we don't see it when we have a filerevision
 	var hashesMissing []string
 	for _, file := range request.Files {
-		// insert into file
-		err = qtx.InsertFile(ctx, sqlcgen.InsertFileParams{Projectid: int64(request.ProjectId), Path: file.Path})
-		if err != nil {
-			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			} else {
-				fmt.Println("uwuwuwu")
-				fmt.Printf("err: %v\n", err)
-			}
-		}
-
 		// add filerevision
 		// error if we fail a unique thing (hopefully)
+		t2 := time.Now()
 		err = qtx.InsertFileRevision(ctx, sqlcgen.InsertFileRevisionParams{
 			Projectid:  int64(request.ProjectId),
 			Path:       file.Path,
@@ -89,7 +89,10 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("error %v\n", err)
 			}
 		}
+		fmt.Println("inserting filerevision: " + time.Since(t2).String())
 	}
+	durationOne := time.Since(start)
+	fmt.Println("iterating took " + durationOne.String())
 	if len(hashesMissing) > 0 {
 		// respond with nb
 		fmt.Fprintf(w, `
@@ -103,6 +106,9 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	// no hashes missing, so commit the transaction
 	// we should consider returning more info too
 	tx.Commit()
+
+	durationTwo := time.Since(start)
+	fmt.Println("transaction took " + durationTwo.String())
 	fmt.Fprintf(w, `{
 	"status": "success",
 	"commitid": %v
