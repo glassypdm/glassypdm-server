@@ -63,14 +63,14 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	// we don't see it when we have a filerevision
 	var hashesMissing []string
 	for _, file := range request.Files {
-		_ = file
 		// insert into file
 		err = qtx.InsertFile(ctx, sqlcgen.InsertFileParams{Projectid: int64(request.ProjectId), Path: file.Path})
 		if err != nil {
-			// TODO do we need to handle anything here?
-			fmt.Println("uwuwuwu")
-
-			fmt.Printf("err: %v\n", err)
+			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			} else {
+				fmt.Println("uwuwuwu")
+				fmt.Printf("err: %v\n", err)
+			}
 		}
 
 		// add filerevision
@@ -89,7 +89,6 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("error %v\n", err)
 			}
 		}
-
 	}
 	if len(hashesMissing) > 0 {
 		// respond with nb
