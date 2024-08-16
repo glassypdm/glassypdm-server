@@ -79,19 +79,19 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 				Projectid:  int64(request.ProjectId),
 				Path:       request.Files[i].Path,
 				Commitid:   cid,
-				Hash:       request.Files[i].Hash,
+				Filehash:   request.Files[i].Hash,
 				Changetype: int64(request.Files[i].ChangeType)})
 		} else {
 			err = qtx.InsertTwoFileRevisions(ctx, sqlcgen.InsertTwoFileRevisionsParams{
 				Projectid:    int64(request.ProjectId),
 				Path:         request.Files[i].Path,
 				Commitid:     cid,
-				Hash:         request.Files[i].Hash,
+				Filehash:     request.Files[i].Hash,
 				Changetype:   int64(request.Files[i].ChangeType),
 				Projectid_2:  int64(request.ProjectId),
 				Path_2:       request.Files[i+1].Path,
 				Commitid_2:   cid,
-				Hash_2:       request.Files[i+1].Hash,
+				Filehash_2:   request.Files[i+1].Hash,
 				Changetype_2: int64(request.Files[i+1].ChangeType)})
 		}
 

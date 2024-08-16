@@ -53,19 +53,6 @@ func (q *Queries) DeleteTeamPermission(ctx context.Context, userid string) (Team
 	return i, err
 }
 
-const findHash = `-- name: FindHash :one
-SELECT hash, s3key, size FROM block
-WHERE hash = ?
-LIMIT 1
-`
-
-func (q *Queries) FindHash(ctx context.Context, hash string) (Block, error) {
-	row := q.db.QueryRowContext(ctx, findHash, hash)
-	var i Block
-	err := row.Scan(&i.Hash, &i.S3key, &i.Size)
-	return i, err
-}
-
 const findProjectInitCommit = `-- name: FindProjectInitCommit :one
 SELECT commitid FROM 'commit'
 WHERE projectid = ?
@@ -244,20 +231,20 @@ SELECT
   a.numfiles,
   hehe.path,
   hehe.frno,
-  hehe.hash,
-  hehe.size
+  hehe.blockhash,
+  hehe.blocksize
 FROM
   'commit' a
   INNER JOIN (
     SELECT
-      b.hash,
-      b.size,
+      b.blockhash,
+      b.blocksize,
       fr.path,
       fr.frno,
       fr.commitid
     FROM
       filerevision fr
-      INNER JOIN block b ON fr.hash = b.hash
+      INNER JOIN block b ON fr.blockhash = b.blockhash
     WHERE fr.commitid = ?
   ) hehe ON a.commitid = hehe.commitid
 WHERE
@@ -277,10 +264,11 @@ type GetCommitInfoRow struct {
 	Numfiles  int64         `json:"numfiles"`
 	Path      string        `json:"path"`
 	Frno      sql.NullInt64 `json:"frno"`
-	Hash      string        `json:"hash"`
-	Size      int64         `json:"size"`
+	Blockhash string        `json:"blockhash"`
+	Blocksize int64         `json:"blocksize"`
 }
 
+// TODO Fix
 func (q *Queries) GetCommitInfo(ctx context.Context, arg GetCommitInfoParams) (GetCommitInfoRow, error) {
 	row := q.db.QueryRowContext(ctx, getCommitInfo, arg.Commitid, arg.Commitid_2)
 	var i GetCommitInfoRow
@@ -292,28 +280,61 @@ func (q *Queries) GetCommitInfo(ctx context.Context, arg GetCommitInfoParams) (G
 		&i.Numfiles,
 		&i.Path,
 		&i.Frno,
-		&i.Hash,
-		&i.Size,
+		&i.Blockhash,
+		&i.Blocksize,
 	)
 	return i, err
 }
 
-const getHash = `-- name: GetHash :one
-SELECT hash FROM filerevision
+const getFileChunks = `-- name: GetFileChunks :many
+SELECT blockhash, chunkindex FROM chunk
+WHERE filehash = ?
+`
+
+type GetFileChunksRow struct {
+	Blockhash  string `json:"blockhash"`
+	Chunkindex int64  `json:"chunkindex"`
+}
+
+func (q *Queries) GetFileChunks(ctx context.Context, filehash string) ([]GetFileChunksRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFileChunks, filehash)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFileChunksRow
+	for rows.Next() {
+		var i GetFileChunksRow
+		if err := rows.Scan(&i.Blockhash, &i.Chunkindex); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFileHash = `-- name: GetFileHash :one
+SELECT filehash FROM filerevision
 WHERE projectid = ? AND path = ? AND commitid = ? LIMIT 1
 `
 
-type GetHashParams struct {
+type GetFileHashParams struct {
 	Projectid int64  `json:"projectid"`
 	Path      string `json:"path"`
 	Commitid  int64  `json:"commitid"`
 }
 
-func (q *Queries) GetHash(ctx context.Context, arg GetHashParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, getHash, arg.Projectid, arg.Path, arg.Commitid)
-	var hash string
-	err := row.Scan(&hash)
-	return hash, err
+func (q *Queries) GetFileHash(ctx context.Context, arg GetFileHashParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getFileHash, arg.Projectid, arg.Path, arg.Commitid)
+	var filehash string
+	err := row.Scan(&filehash)
+	return filehash, err
 }
 
 const getLatestCommit = `-- name: GetLatestCommit :one
@@ -393,19 +414,19 @@ func (q *Queries) GetProjectPermission(ctx context.Context, arg GetProjectPermis
 }
 
 const getProjectState = `-- name: GetProjectState :many
-SELECT a.frid, a.path, a.commitid, a.hash, a.changetype, block.size FROM block, filerevision a
+SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, block.blocksize FROM block, filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
-WHERE a.projectid = ? AND a.hash = block.hash
+WHERE a.projectid = ? AND a.filehash = block.blockhash
 `
 
 type GetProjectStateRow struct {
 	Frid       int64  `json:"frid"`
 	Path       string `json:"path"`
 	Commitid   int64  `json:"commitid"`
-	Hash       string `json:"hash"`
+	Filehash   string `json:"filehash"`
 	Changetype int64  `json:"changetype"`
-	Size       int64  `json:"size"`
+	Blocksize  int64  `json:"blocksize"`
 }
 
 func (q *Queries) GetProjectState(ctx context.Context, projectid int64) ([]GetProjectStateRow, error) {
@@ -421,9 +442,9 @@ func (q *Queries) GetProjectState(ctx context.Context, projectid int64) ([]GetPr
 			&i.Frid,
 			&i.Path,
 			&i.Commitid,
-			&i.Hash,
+			&i.Filehash,
 			&i.Changetype,
-			&i.Size,
+			&i.Blocksize,
 		); err != nil {
 			return nil, err
 		}
@@ -440,11 +461,11 @@ func (q *Queries) GetProjectState(ctx context.Context, projectid int64) ([]GetPr
 
 const getS3Key = `-- name: GetS3Key :one
 SELECT s3key FROM block
-WHERE hash = ? LIMIT 1
+WHERE blockhash = ? LIMIT 1
 `
 
-func (q *Queries) GetS3Key(ctx context.Context, hash string) (string, error) {
-	row := q.db.QueryRowContext(ctx, getS3Key, hash)
+func (q *Queries) GetS3Key(ctx context.Context, blockhash string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getS3Key, blockhash)
 	var s3key string
 	err := row.Scan(&s3key)
 	return s3key, err
@@ -549,6 +570,30 @@ func (q *Queries) GetUploadPermission(ctx context.Context, userid string) (int64
 	return count, err
 }
 
+const insertChunk = `-- name: InsertChunk :exec
+INSERT INTO chunk(chunkindex, numchunks, filehash, blockhash, blocksize)
+VALUES (?, ?, ?, ?, ?)
+`
+
+type InsertChunkParams struct {
+	Chunkindex int64  `json:"chunkindex"`
+	Numchunks  int64  `json:"numchunks"`
+	Filehash   string `json:"filehash"`
+	Blockhash  string `json:"blockhash"`
+	Blocksize  int64  `json:"blocksize"`
+}
+
+func (q *Queries) InsertChunk(ctx context.Context, arg InsertChunkParams) error {
+	_, err := q.db.ExecContext(ctx, insertChunk,
+		arg.Chunkindex,
+		arg.Numchunks,
+		arg.Filehash,
+		arg.Blockhash,
+		arg.Blocksize,
+	)
+	return err
+}
+
 const insertCommit = `-- name: InsertCommit :one
 INSERT INTO 'commit'(projectid, userid, comment, numfiles)
 VALUES (?, ?, ?, ?)
@@ -590,15 +635,16 @@ func (q *Queries) InsertFile(ctx context.Context, arg InsertFileParams) error {
 }
 
 const insertFileRevision = `-- name: InsertFileRevision :exec
-INSERT INTO filerevision(projectid, path, commitid, hash, changetype)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO filerevision(projectid, path, commitid, filehash, numchunks, changetype)
+VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type InsertFileRevisionParams struct {
 	Projectid  int64  `json:"projectid"`
 	Path       string `json:"path"`
 	Commitid   int64  `json:"commitid"`
-	Hash       string `json:"hash"`
+	Filehash   string `json:"filehash"`
+	Numchunks  int64  `json:"numchunks"`
 	Changetype int64  `json:"changetype"`
 }
 
@@ -607,25 +653,26 @@ func (q *Queries) InsertFileRevision(ctx context.Context, arg InsertFileRevision
 		arg.Projectid,
 		arg.Path,
 		arg.Commitid,
-		arg.Hash,
+		arg.Filehash,
+		arg.Numchunks,
 		arg.Changetype,
 	)
 	return err
 }
 
 const insertHash = `-- name: InsertHash :exec
-INSERT INTO block(hash, s3key, size)
+INSERT INTO block(blockhash, s3key, blocksize)
 VALUES (?, ?, ?)
 `
 
 type InsertHashParams struct {
-	Hash  string `json:"hash"`
-	S3key string `json:"s3key"`
-	Size  int64  `json:"size"`
+	Blockhash string `json:"blockhash"`
+	S3key     string `json:"s3key"`
+	Blocksize int64  `json:"blocksize"`
 }
 
 func (q *Queries) InsertHash(ctx context.Context, arg InsertHashParams) error {
-	_, err := q.db.ExecContext(ctx, insertHash, arg.Hash, arg.S3key, arg.Size)
+	_, err := q.db.ExecContext(ctx, insertHash, arg.Blockhash, arg.S3key, arg.Blocksize)
 	return err
 }
 
@@ -661,20 +708,22 @@ func (q *Queries) InsertTeam(ctx context.Context, name string) (int64, error) {
 }
 
 const insertTwoFileRevisions = `-- name: InsertTwoFileRevisions :exec
-INSERT INTO filerevision(projectid, path, commitid, hash, changetype)
-VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)
+INSERT INTO filerevision(projectid, path, commitid, filehash, numchunks, changetype)
+VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)
 `
 
 type InsertTwoFileRevisionsParams struct {
 	Projectid    int64  `json:"projectid"`
 	Path         string `json:"path"`
 	Commitid     int64  `json:"commitid"`
-	Hash         string `json:"hash"`
+	Filehash     string `json:"filehash"`
+	Numchunks    int64  `json:"numchunks"`
 	Changetype   int64  `json:"changetype"`
 	Projectid_2  int64  `json:"projectid_2"`
 	Path_2       string `json:"path_2"`
 	Commitid_2   int64  `json:"commitid_2"`
-	Hash_2       string `json:"hash_2"`
+	Filehash_2   string `json:"filehash_2"`
+	Numchunks_2  int64  `json:"numchunks_2"`
 	Changetype_2 int64  `json:"changetype_2"`
 }
 
@@ -683,12 +732,14 @@ func (q *Queries) InsertTwoFileRevisions(ctx context.Context, arg InsertTwoFileR
 		arg.Projectid,
 		arg.Path,
 		arg.Commitid,
-		arg.Hash,
+		arg.Filehash,
+		arg.Numchunks,
 		arg.Changetype,
 		arg.Projectid_2,
 		arg.Path_2,
 		arg.Commitid_2,
-		arg.Hash_2,
+		arg.Filehash_2,
+		arg.Numchunks_2,
 		arg.Changetype_2,
 	)
 	return err
@@ -746,11 +797,11 @@ func (q *Queries) ListProjectCommits(ctx context.Context, arg ListProjectCommits
 }
 
 const removeHash = `-- name: RemoveHash :exec
-DELETE FROM block WHERE hash = ?
+DELETE FROM block WHERE blockhash = ?
 `
 
-func (q *Queries) RemoveHash(ctx context.Context, hash string) error {
-	_, err := q.db.ExecContext(ctx, removeHash, hash)
+func (q *Queries) RemoveHash(ctx context.Context, blockhash string) error {
+	_, err := q.db.ExecContext(ctx, removeHash, blockhash)
 	return err
 }
 

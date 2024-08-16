@@ -85,29 +85,28 @@ INSERT INTO 'commit'(projectid, userid, comment, numfiles)
 VALUES (?, ?, ?, ?)
 RETURNING commitid;
 
--- name: FindHash :one
-SELECT * FROM block
-WHERE hash = ?
-LIMIT 1;
+-- name: InsertChunk :exec
+INSERT INTO chunk(chunkindex, numchunks, filehash, blockhash, blocksize)
+VALUES (?, ?, ?, ?, ?);
 
 -- name: InsertHash :exec
-INSERT INTO block(hash, s3key, size)
+INSERT INTO block(blockhash, s3key, blocksize)
 VALUES (?, ?, ?);
 
 -- name: RemoveHash :exec
-DELETE FROM block WHERE hash = ?;
+DELETE FROM block WHERE blockhash = ?;
 
 -- name: InsertFile :exec
 INSERT INTO file(projectid, path)
 VALUES (?, ?);
 
 -- name: InsertFileRevision :exec
-INSERT INTO filerevision(projectid, path, commitid, hash, changetype)
-VALUES (?, ?, ?, ?, ?);
+INSERT INTO filerevision(projectid, path, commitid, filehash, numchunks, changetype)
+VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: InsertTwoFileRevisions :exec
-INSERT INTO filerevision(projectid, path, commitid, hash, changetype)
-VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?);
+INSERT INTO filerevision(projectid, path, commitid, filehash, numchunks, changetype)
+VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?);
 
 -- name: GetTeamByProject :one
 SELECT teamid FROM project
@@ -115,17 +114,21 @@ WHERE projectid = ? LIMIT 1;
 
 -- name: GetS3Key :one
 SELECT s3key FROM block
-WHERE hash = ? LIMIT 1;
+WHERE blockhash = ? LIMIT 1;
 
--- name: GetHash :one
-SELECT hash FROM filerevision
+-- name: GetFileHash :one
+SELECT filehash FROM filerevision
 WHERE projectid = ? AND path = ? AND commitid = ? LIMIT 1;
 
+-- name: GetFileChunks :many
+SELECT blockhash, chunkindex FROM chunk
+WHERE filehash = ?;
+
 -- name: GetProjectState :many
-SELECT a.frid, a.path, a.commitid, a.hash, a.changetype, block.size FROM block, filerevision a
+SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, block.blocksize FROM block, filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
-WHERE a.projectid = ? AND a.hash = block.hash;
+WHERE a.projectid = ? AND a.filehash = block.blockhash;
 
 -- name: GetProjectLivingFiles :many
 SELECT a.frid, a.path FROM filerevision a
@@ -144,6 +147,7 @@ SELECT COUNT(commitid) FROM 'commit'
 WHERE projectid = ?
 LIMIT 1;
 
+-- TODO Fix
 -- name: GetCommitInfo :one
 SELECT
   a.cno,
@@ -153,20 +157,20 @@ SELECT
   a.numfiles,
   hehe.path,
   hehe.frno,
-  hehe.hash,
-  hehe.size
+  hehe.blockhash,
+  hehe.blocksize
 FROM
   'commit' a
   INNER JOIN (
     SELECT
-      b.hash,
-      b.size,
+      b.blockhash,
+      b.blocksize,
       fr.path,
       fr.frno,
       fr.commitid
     FROM
       filerevision fr
-      INNER JOIN block b ON fr.hash = b.hash
+      INNER JOIN block b ON fr.blockhash = b.blockhash
     WHERE fr.commitid = ?
   ) hehe ON a.commitid = hehe.commitid
 WHERE

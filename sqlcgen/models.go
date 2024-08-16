@@ -9,9 +9,17 @@ import (
 )
 
 type Block struct {
-	Hash  string `json:"hash"`
-	S3key string `json:"s3key"`
-	Size  int64  `json:"size"`
+	Blockhash string `json:"blockhash"`
+	S3key     string `json:"s3key"`
+	Blocksize int64  `json:"blocksize"`
+}
+
+type Chunk struct {
+	Chunkindex int64  `json:"chunkindex"`
+	Numchunks  int64  `json:"numchunks"`
+	Filehash   string `json:"filehash"`
+	Blockhash  string `json:"blockhash"`
+	Blocksize  int64  `json:"blocksize"`
 }
 
 type Commit struct {
@@ -36,9 +44,10 @@ type Filerevision struct {
 	Projectid  int64         `json:"projectid"`
 	Path       string        `json:"path"`
 	Commitid   int64         `json:"commitid"`
-	Hash       string        `json:"hash"`
-	Frno       sql.NullInt64 `json:"frno"`
+	Filehash   string        `json:"filehash"`
 	Changetype int64         `json:"changetype"`
+	Numchunks  int64         `json:"numchunks"`
+	Frno       sql.NullInt64 `json:"frno"`
 }
 
 type Project struct {

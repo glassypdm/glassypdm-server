@@ -26,12 +26,6 @@ CREATE TABLE IF NOT EXISTS projectpermission(
     PRIMARY KEY (userid, projectid)
 );
 
-CREATE TABLE IF NOT EXISTS block(
-    hash TEXT PRIMARY KEY NOT NULL,
-    s3key TEXT NOT NULL,
-    size INTEGER NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS 'commit'(
     commitid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     projectid INTEGER NOT NULL,
@@ -58,14 +52,29 @@ CREATE TABLE IF NOT EXISTS filerevision(
     projectid INTEGER NOT NULL,
     path TEXT NOT NULL,
     commitid INTEGER NOT NULL,
-    hash TEXT NOT NULL,
-    frno INTEGER,
+    filehash TEXT NOT NULL,
     changetype INTEGER NOT NULL,
+    numchunks INTEGER NOT NULL,
+    frno INTEGER,
     FOREIGN KEY(projectid) REFERENCES project(projectid),
-    FOREIGN KEY(commitid) REFERENCES 'commit'(commitid),
-    FOREIGN KEY(hash) REFERENCES block(hash)
+    FOREIGN KEY(commitid) REFERENCES 'commit'(commitid)
 );
 
+CREATE TABLE IF NOT EXISTS chunk(
+    chunkindex INTEGER NOT NULL,
+    numchunks INTEGER NOT NULL,
+    filehash TEXT NOT NULL,
+    blockhash TEXT NOT NULL,
+    blocksize INTEGER NOT NULL,
+    PRIMARY KEY(chunkindex, blockhash),
+    FOREIGN KEY(blockhash) REFERENCES block(blockhash)
+);
+
+CREATE TABLE IF NOT EXISTS block(
+    blockhash TEXT PRIMARY KEY NOT NULL,
+    s3key TEXT NOT NULL,
+    blocksize INTEGER NOT NULL
+);
 
 
 CREATE TRIGGER IF NOT EXISTS commitnumber AFTER INSERT ON 'commit' BEGIN
