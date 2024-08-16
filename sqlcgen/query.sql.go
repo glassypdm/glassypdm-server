@@ -660,6 +660,40 @@ func (q *Queries) InsertTeam(ctx context.Context, name string) (int64, error) {
 	return teamid, err
 }
 
+const insertTwoFileRevisions = `-- name: InsertTwoFileRevisions :exec
+INSERT INTO filerevision(projectid, path, commitid, hash, changetype)
+VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)
+`
+
+type InsertTwoFileRevisionsParams struct {
+	Projectid    int64  `json:"projectid"`
+	Path         string `json:"path"`
+	Commitid     int64  `json:"commitid"`
+	Hash         string `json:"hash"`
+	Changetype   int64  `json:"changetype"`
+	Projectid_2  int64  `json:"projectid_2"`
+	Path_2       string `json:"path_2"`
+	Commitid_2   int64  `json:"commitid_2"`
+	Hash_2       string `json:"hash_2"`
+	Changetype_2 int64  `json:"changetype_2"`
+}
+
+func (q *Queries) InsertTwoFileRevisions(ctx context.Context, arg InsertTwoFileRevisionsParams) error {
+	_, err := q.db.ExecContext(ctx, insertTwoFileRevisions,
+		arg.Projectid,
+		arg.Path,
+		arg.Commitid,
+		arg.Hash,
+		arg.Changetype,
+		arg.Projectid_2,
+		arg.Path_2,
+		arg.Commitid_2,
+		arg.Hash_2,
+		arg.Changetype_2,
+	)
+	return err
+}
+
 const listProjectCommits = `-- name: ListProjectCommits :many
 SELECT cno, numfiles, userid, comment, commitid, timestamp FROM 'commit'
 WHERE projectid = ?

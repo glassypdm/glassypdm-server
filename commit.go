@@ -71,18 +71,35 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var hashesMissing []string
-	for _, file := range request.Files {
-		// add filerevision
-		// error if we fail a unique thing (hopefully)
-		err = qtx.InsertFileRevision(ctx, sqlcgen.InsertFileRevisionParams{
-			Projectid:  int64(request.ProjectId),
-			Path:       file.Path,
-			Commitid:   cid,
-			Hash:       file.Hash,
-			Changetype: int64(file.ChangeType)})
+	//for _, file := range request.Files {
+	for i := 0; i < len(request.Files); i += 2 {
+
+		if i+1 >= len(request.Files) {
+			err = qtx.InsertFileRevision(ctx, sqlcgen.InsertFileRevisionParams{
+				Projectid:  int64(request.ProjectId),
+				Path:       request.Files[i].Path,
+				Commitid:   cid,
+				Hash:       request.Files[i].Hash,
+				Changetype: int64(request.Files[i].ChangeType)})
+		} else {
+			err = qtx.InsertTwoFileRevisions(ctx, sqlcgen.InsertTwoFileRevisionsParams{
+				Projectid:    int64(request.ProjectId),
+				Path:         request.Files[i].Path,
+				Commitid:     cid,
+				Hash:         request.Files[i].Hash,
+				Changetype:   int64(request.Files[i].ChangeType),
+				Projectid_2:  int64(request.ProjectId),
+				Path_2:       request.Files[i+1].Path,
+				Commitid_2:   cid,
+				Hash_2:       request.Files[i+1].Hash,
+				Changetype_2: int64(request.Files[i+1].ChangeType)})
+		}
+
 		if err != nil {
 			if strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
-				hashesMissing = append(hashesMissing, file.Hash)
+				// TODO error handling here isnt very ergonomic i think
+				hashesMissing = append(hashesMissing, request.Files[i].Hash)
+				hashesMissing = append(hashesMissing, request.Files[i+1].Hash)
 				continue
 			} else {
 				fmt.Printf("error %v\n", err)

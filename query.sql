@@ -105,6 +105,10 @@ VALUES (?, ?);
 INSERT INTO filerevision(projectid, path, commitid, hash, changetype)
 VALUES (?, ?, ?, ?, ?);
 
+-- name: InsertTwoFileRevisions :exec
+INSERT INTO filerevision(projectid, path, commitid, hash, changetype)
+VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?);
+
 -- name: GetTeamByProject :one
 SELECT teamid FROM project
 WHERE projectid = ? LIMIT 1;
