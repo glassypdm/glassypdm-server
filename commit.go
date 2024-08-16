@@ -74,7 +74,6 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	for _, file := range request.Files {
 		// add filerevision
 		// error if we fail a unique thing (hopefully)
-		t2 := time.Now()
 		err = qtx.InsertFileRevision(ctx, sqlcgen.InsertFileRevisionParams{
 			Projectid:  int64(request.ProjectId),
 			Path:       file.Path,
@@ -89,10 +88,9 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("error %v\n", err)
 			}
 		}
-		fmt.Println("inserting filerevision: " + time.Since(t2).String())
 	}
 	durationOne := time.Since(start)
-	fmt.Println("iterating took " + durationOne.String())
+	fmt.Println("iterating took " + durationOne.String() + " over " + string(len(request.Files)) + " files")
 	if len(hashesMissing) > 0 {
 		// respond with nb
 		fmt.Fprintf(w, `
