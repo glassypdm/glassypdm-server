@@ -120,7 +120,20 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			fmt.Println("hehe duplicate")
-			PrintError(w, "duplicate block hash found")
+
+			err = queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
+				Chunkindex: cidx,
+				Numchunks:  numchunks,
+				Filehash:   FileHash,
+				Blockhash:  hashUser,
+				Blocksize:  size,
+			})
+			if err != nil {
+				PrintError(w, "db error")
+				return
+			}
+
+			PrintSuccess(w, "duplicate found")
 			return
 		}
 	}
@@ -141,10 +154,10 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// confirm hash matches what the user supplies us
+	// if hash does not match, remove from bucket and db
 	hashCalc := hasher.Sum(nil)
 	if hashUser != hex.EncodeToString(hashCalc) {
 		fmt.Fprintf(w, `{ "status": "hash doesn't match" }`)
-		// remove object from bucket
 		s3.RemoveObject(
 			ctx,
 			os.Getenv("S3_BUCKETNAME"),
@@ -153,8 +166,6 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 		queries.RemoveHash(ctx, hashUser)
 		return
-	} else {
-		fmt.Println("hash ok")
 	}
 
 	err = queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
@@ -168,7 +179,19 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		PrintError(w, "db error")
 		return
 	}
-	fmt.Fprintf(w, `{ "status": "success" }`)
+	PrintSuccess(w, "upload successful")
+}
+
+type FileChunk struct {
+	Url       string `json:"s3_url"`
+	BlockHash string `json:"block_hash"`
+	Index     int    `json:"file_index"`
+}
+type DownloadOutput struct {
+	FileHash string      `json:"file_hash"`
+	CommitId int         `json:"commit_id"`
+	FilePath string      `json:"file_path"`
+	Chunks   []FileChunk `json:"file_chunks"`
 }
 
 type DownloadRequest struct {
@@ -177,9 +200,6 @@ type DownloadRequest struct {
 	CommitId  int    `json:"commit_id"`
 }
 
-// TODO
-// body: filepath, project id
-// returns presigned url for download
 func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -252,16 +272,4 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 
 	output_str, _ := json.Marshal(output)
 	PrintSuccess(w, string(output_str))
-}
-
-type FileChunk struct {
-	Url       string `json:"s3_url"`
-	BlockHash string `json:"block_hash"`
-	Index     int    `json:"file_index"`
-}
-type DownloadOutput struct {
-	FileHash string      `json:"file_hash"`
-	CommitId int         `json:"commit_id"`
-	FilePath string      `json:"file_path"`
-	Chunks   []FileChunk `json:"file_chunks"`
 }
