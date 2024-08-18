@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS filerevision(
     numchunks INTEGER NOT NULL,
     frno INTEGER,
     FOREIGN KEY(projectid) REFERENCES project(projectid),
-    FOREIGN KEY(commitid) REFERENCES 'commit'(commitid)
+    FOREIGN KEY(commitid) REFERENCES 'commit'(commitid),
+    FOREIGN KEY(filehash) REFERENCES chunk(filehash)
 );
 
 CREATE TABLE IF NOT EXISTS chunk(
@@ -67,7 +68,8 @@ CREATE TABLE IF NOT EXISTS chunk(
     blockhash TEXT NOT NULL,
     blocksize INTEGER NOT NULL,
     PRIMARY KEY(chunkindex, blockhash),
-    FOREIGN KEY(blockhash) REFERENCES block(blockhash)
+    FOREIGN KEY(blockhash) REFERENCES block(blockhash),
+    UNIQUE(chunkindex, filehash)
 );
 
 CREATE TABLE IF NOT EXISTS block(
