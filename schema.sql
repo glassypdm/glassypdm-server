@@ -86,5 +86,6 @@ UPDATE filerevision SET frno = (SELECT COUNT(*) FROM filerevision WHERE path = N
 END;
 
 CREATE TRIGGER IF NOT EXISTS crfile AFTER INSERT ON filerevision BEGIN
-INSERT INTO file(projectid, path) VALUES (NEW.projectid, NEW.path);
+INSERT INTO file(projectid, path) VALUES (NEW.projectid, NEW.path)
+ON CONFLICT(projectid, path) DO NOTHING;
 END;

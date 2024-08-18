@@ -60,31 +60,35 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, header, err := r.FormFile("file")
+	FileHash := r.FormValue("file_hash")
+	if FileHash == "" {
+		PrintError(w, "form format incorrect")
+		return
+	}
+
+	ChunkIndex := r.FormValue("chunk_index")
+	if ChunkIndex == "" {
+		PrintError(w, "form format incorrect")
+		return
+	}
+	NumChunks := r.FormValue("num_chunks")
+	if NumChunks == "" {
+		PrintError(w, "form format incorrect")
+		return
+	}
+
+	file, header, err := r.FormFile("chunk")
 	if err != nil {
 		PrintError(w, "cannot read file")
 		return
 	}
 	size := header.Size
 
-	FileHash := r.FormValue("file_hash")
-	if FileHash == "" {
-		PrintError(w, "form format incorrect")
-	}
-
-	ChunkIndex := r.FormValue("chunk_index")
-	if ChunkIndex == "" {
-		PrintError(w, "form format incorrect")
-	}
-	NumChunks := r.FormValue("num_chunks")
-	if NumChunks == "" {
-		PrintError(w, "form format incorrect")
-	}
-
-	cidx, err1 := strconv.ParseInt(NumChunks, 10, 64)
+	cidx, err1 := strconv.ParseInt(ChunkIndex, 10, 64)
 	numchunks, err2 := strconv.ParseInt(NumChunks, 10, 64)
 	if err1 != nil || err2 != nil {
 		PrintError(w, "form format incorrect")
+		return
 	}
 
 	hashUser := r.FormValue("block_hash")
@@ -121,6 +125,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			fmt.Println("hehe duplicate")
 
+			// insert the chunk because we need to anyways
 			err = queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
 				Chunkindex: cidx,
 				Numchunks:  numchunks,
@@ -129,6 +134,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 				Blocksize:  size,
 			})
 			if err != nil {
+				// TODO if the error is unique constraint, we can ignore it too
 				PrintError(w, "db error")
 				return
 			}
@@ -157,7 +163,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	// if hash does not match, remove from bucket and db
 	hashCalc := hasher.Sum(nil)
 	if hashUser != hex.EncodeToString(hashCalc) {
-		fmt.Fprintf(w, `{ "status": "hash doesn't match" }`)
+		PrintError(w, "hash doesn't match")
 		s3.RemoveObject(
 			ctx,
 			os.Getenv("S3_BUCKETNAME"),

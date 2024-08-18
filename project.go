@@ -187,7 +187,7 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 	teamName, err := query.GetTeamName(ctx, team)
 	if err != nil {
 		fmt.Println(err.Error())
-		fmt.Fprintf(w, `{ "status": "rdb error", "db": "%s" }`, err.Error())
+		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
 		return
 	}
 	cid, err := query.FindProjectInitCommit(ctx, int64(pid))
