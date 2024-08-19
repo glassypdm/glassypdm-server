@@ -108,13 +108,14 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	}
 	durationOne := time.Since(start)
 	fmt.Println("iterating took " + durationOne.String() + " over " + fmt.Sprint(len(request.Files)) + " files")
+	asdfjkl, err := json.Marshal(hashesMissing)
 	if len(hashesMissing) > 0 {
 		// respond with nb
 		fmt.Fprintf(w, `
 			{
 			"status": "nb",
-			"hashes": "%v"
-			}`, hashesMissing)
+			"hashes": %v
+			}`, asdfjkl)
 		return
 	}
 

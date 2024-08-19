@@ -134,9 +134,11 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 				Blocksize:  size,
 			})
 			if err != nil {
-				// TODO if the error is unique constraint, we can ignore it too
-				PrintError(w, "db error")
-				return
+				if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				} else {
+					PrintError(w, "db error")
+					return
+				}
 			}
 
 			PrintSuccess(w, "duplicate found")
@@ -191,7 +193,8 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 type FileChunk struct {
 	Url       string `json:"s3_url"`
 	BlockHash string `json:"block_hash"`
-	Index     int    `json:"file_index"`
+	FileHash  string `json:"file_hash"`
+	Index     int    `json:"chunk_index"`
 }
 type DownloadOutput struct {
 	FileHash string      `json:"file_hash"`
@@ -265,7 +268,12 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 			PrintError(w, "s3 error")
 			return
 		}
-		chunks = append(chunks, FileChunk{Url: url.String(), BlockHash: chunk.Blockhash, Index: int(chunk.Chunkindex)})
+		chunks = append(chunks,
+			FileChunk{
+				Url:       url.String(),
+				BlockHash: chunk.Blockhash,
+				Index:     int(chunk.Chunkindex),
+				FileHash:  filehash})
 	}
 
 	// return result
