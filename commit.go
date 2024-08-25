@@ -74,6 +74,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	//for _, file := range request.Files {
 	for i := 0; i < len(request.Files); i += 2 {
 
+		// NOTE these dont add numchunks
 		if i+1 >= len(request.Files) {
 			err = qtx.InsertFileRevision(ctx, sqlcgen.InsertFileRevisionParams{
 				Projectid:  int64(request.ProjectId),
@@ -96,7 +97,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			if strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+			if strings.Contains(err.Error(), "FOREIGN KEY constraint failed") || strings.Contains(err.Error(), "foreign key mismatch") {
 				// TODO error handling here isnt very ergonomic i think
 				hashesMissing = append(hashesMissing, request.Files[i].Hash)
 				hashesMissing = append(hashesMissing, request.Files[i+1].Hash)
