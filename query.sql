@@ -125,10 +125,10 @@ SELECT blockhash, chunkindex FROM chunk
 WHERE filehash = ?;
 
 -- name: GetProjectState :many
-SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, block.blocksize FROM block, filerevision a
+SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, chunk.blocksize FROM chunk, filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
-WHERE a.projectid = ? AND a.filehash = block.blockhash;
+WHERE a.projectid = ? AND a.filehash = chunk.filehash;
 
 -- name: GetProjectLivingFiles :many
 SELECT a.frid, a.path FROM filerevision a

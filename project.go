@@ -291,7 +291,6 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{ "status": "db error" }`)
 		return
 	}
-	fmt.Println(output)
 	if len(output) == 0 {
 		fmt.Println("empty")
 	}
