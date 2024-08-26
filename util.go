@@ -124,15 +124,13 @@ func canUserUpload(userId string) bool {
 		}
 	}
 
-	// check project permission
-	projectpermissions, err := query.FindProjectPermissions(ctx, userId)
+	// check permission groups
+	groups, err := query.FindUserInPermissionGroup(ctx, userId)
 	if err != nil {
 		return false
 	}
-	for level := range projectpermissions {
-		if level >= 2 {
-			return true
-		}
+	if len(groups) > 0 {
+		return true
 	}
 	return false
 }

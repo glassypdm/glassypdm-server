@@ -19,11 +19,27 @@ CREATE TABLE IF NOT EXISTS project(
     UNIQUE(teamid, title)
 );
 
-CREATE TABLE IF NOT EXISTS projectpermission(
+CREATE TABLE IF NOT EXISTS permissiongroup(
+    pgroupid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    teamid INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    FOREIGN KEY(teamid) REFERENCES team(teamid)
+);
+
+CREATE TABLE IF NOT EXISTS pgmembership(
+    pgroupid INTEGER NOT NULL,
     userid TEXT NOT NULL,
+    PRIMARY KEY (pgroupid, userid),
+    FOREIGN KEY(pgroupid) REFERENCES permissiongroup(pgroupid)
+);
+
+CREATE TABLE IF NOT EXISTS pgmapping(
+    pgroupid INTEGER NOT NULL,
     projectid INTEGER NOT NULL,
-    level INTEGER NOT NULL,
-    PRIMARY KEY (userid, projectid)
+    level INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (pgroupid, projectid),
+    FOREIGN KEY(pgroupid) REFERENCES permissiongroup(pgroupid),
+    FOREIGN KEY(projectid) REFERENCES project(projectid)
 );
 
 CREATE TABLE IF NOT EXISTS 'commit'(

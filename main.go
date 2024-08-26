@@ -58,6 +58,13 @@ func main() {
 		r.Post("/team", CreateTeam)
 		r.Get("/team", GetTeamForUser)
 		r.Get("/team/by-id/{team-id}", getTeamInformation)
+		r.Get("/team/by-id/{team-id}/pgroup/list", GetPermissionGroups)
+		r.Post("/team/by-id/{team-id}/pgroup/create", CreatePermissionGroup)
+		// add mapping
+		// remove mapping
+		// add member
+		// removem member
+		// delete permission group
 	})
 
 	port := os.Getenv("PORT")

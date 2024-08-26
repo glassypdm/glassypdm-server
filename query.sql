@@ -2,10 +2,6 @@
 SELECT level FROM teampermission
 WHERE userid = ?;
 
--- name: FindProjectPermissions :many
-SELECT level FROM projectpermission
-WHERE userid = ?;
-
 -- name: FindProjectInitCommit :one
 SELECT commitid FROM 'commit'
 WHERE projectid = ?
@@ -62,10 +58,6 @@ RETURNING projectid;
 -- name: GetProjectInfo :one
 SELECT title FROM project
 WHERE projectid = ? LIMIT 1;
-
--- name: GetProjectPermission :one
-SELECT level FROM projectpermission
-WHERE userid = ? AND projectid = ? LIMIT 1;
 
 -- name: GetUploadPermission :one
 SELECT COUNT(*) FROM teampermission
@@ -157,21 +149,65 @@ SELECT
   a.numfiles,
   hehe.path,
   hehe.frno,
-  hehe.blockhash,
+  hehe.filehash,
   hehe.blocksize
 FROM
   'commit' a
   INNER JOIN (
     SELECT
-      b.blockhash,
+      b.filehash,
       b.blocksize,
       fr.path,
       fr.frno,
       fr.commitid
     FROM
       filerevision fr
-      INNER JOIN block b ON fr.blockhash = b.blockhash
+      INNER JOIN chunk b ON fr.filehash = b.filehash
     WHERE fr.commitid = ?
   ) hehe ON a.commitid = hehe.commitid
 WHERE
   a.commitid = ? LIMIT 1;
+
+-- name: CreatePermissionGroup :exec
+INSERT INTO permissiongroup(teamid, name) VALUES(?, ?);
+
+-- name: AddMemberToPermissionGroup :exec
+INSERT INTO pgmembership(pgroupid, userid) VALUES(?, ?);
+
+-- name: MapProjectToPermissionGroup :exec
+INSERT INTO pgmapping(pgroupid, projectid) VALUES(?, ?);
+
+-- name: ListPermissionGroupForTeam :many
+SELECT pg.pgroupid as pgroupid, pg.name as pgroup_name, p.title as project_title, p.projectid as project_id
+FROM permissiongroup pg, project p, pgmapping pgm WHERE
+pg.teamid = ? AND pg.pgroupid = pgm.pgroupid AND pgm.projectid = p.projectid AND p.teamid = pg.teamid;
+
+-- name: ListPermissionGroupMembership :many
+SELECT userid FROM pgmembership WHERE pgroupid = ?;
+
+-- name: GetPermissionGroupMapping :many
+SELECT p.projectid, p.title FROM pgmapping pg, project p
+WHERE pg.pgroupid = ? AND pg.projectid = p.projectid;
+
+-- name: RemoveMemberFromPermissionGroup :exec
+DELETE FROM pgmembership WHERE pgroupid = ? AND userid = ?;
+
+-- name: RemoveProjectFromPermissionGroup :exec
+DELETE FROM pgmapping WHERE pgroupid = ? AND projectid = ?;
+
+-- name: DropPermissionGroupMembership :exec
+DELETE FROM pgmembership WHERE pgroupid = ?;
+
+-- name: DropPermissionGroupMapping :exec
+DELETE FROM pgmapping WHERE pgroupid = ?;
+
+-- name: DeletePermissionGroup :exec
+DELETE FROM permissiongroup WHERE pgroupid = ?;
+
+-- name: FindUserInPermissionGroup :many
+SELECT pgroupid FROM pgmembership WHERE
+userid = ?;
+
+-- name: IsUserInPermissionGroup :one
+SELECT userid FROM pgmembership pgme, pgmapping pgma WHERE
+pgme.userid = ? AND pgma.projectid = ? AND pgma.pgroupid = pgme.pgroupid;

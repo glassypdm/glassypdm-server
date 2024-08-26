@@ -50,16 +50,27 @@ type Filerevision struct {
 	Frno       sql.NullInt64 `json:"frno"`
 }
 
+type Permissiongroup struct {
+	Pgroupid int64  `json:"pgroupid"`
+	Teamid   int64  `json:"teamid"`
+	Name     string `json:"name"`
+}
+
+type Pgmapping struct {
+	Pgroupid  int64 `json:"pgroupid"`
+	Projectid int64 `json:"projectid"`
+	Level     int64 `json:"level"`
+}
+
+type Pgmembership struct {
+	Pgroupid int64  `json:"pgroupid"`
+	Userid   string `json:"userid"`
+}
+
 type Project struct {
 	Projectid int64  `json:"projectid"`
 	Title     string `json:"title"`
 	Teamid    int64  `json:"teamid"`
-}
-
-type Projectpermission struct {
-	Userid    string `json:"userid"`
-	Projectid int64  `json:"projectid"`
-	Level     int64  `json:"level"`
 }
 
 type Team struct {

@@ -250,14 +250,18 @@ func getProjectPermissionByID(userId string, projectId int) int {
 	}
 
 	// TODO test
-	level, err := queries.GetProjectPermission(ctx, sqlcgen.GetProjectPermissionParams{Userid: userId, Projectid: int64(projectId)})
+	membership, err := queries.IsUserInPermissionGroup(ctx, sqlcgen.IsUserInPermissionGroupParams{Userid: userId, Projectid: int64(projectId)})
 	if err == sql.ErrNoRows {
 		return 1 // read only
 	} else if err != nil {
 		return 0 // general error/no permission
 	}
+	if membership == userId {
+		return 2
+	}
 
-	return int(level)
+	// if we are here, something went wrong
+	return 0
 }
 
 func GetProjectState(w http.ResponseWriter, r *http.Request) {
