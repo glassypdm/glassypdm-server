@@ -60,7 +60,7 @@ func main() {
 		r.Get("/team/by-id/{team-id}", getTeamInformation)
 		r.Get("/team/by-id/{team-id}/pgroup/list", GetPermissionGroups)
 		r.Post("/team/by-id/{team-id}/pgroup/create", CreatePermissionGroup)
-		// add mapping
+		r.Post("/team/by-id/{team-id}/pgroup/map", CreatePermissionGroup)
 		// remove mapping
 		// add member
 		// removem member
