@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/go-chi/chi/v5"
@@ -59,8 +60,9 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Teamid: id, Userid: claims.Subject, Level: 3})
-	fmt.Println(id)
-	fmt.Println(err)
+	if err != nil {
+		log.Error("couldn't insert owner permission", "err", err.Error(), "teamID", id, "userID", claims.Subject)
+	}
 
 	fmt.Fprintf(w, `{ "status": "success" }`)
 }
@@ -98,11 +100,9 @@ func checkPermissionByID(teamid int, userid string) int {
 	ctx := context.Background()
 
 	query := UseQueries()
-	fmt.Println(teamid)
-	fmt.Println(teamid)
 	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(teamid), Userid: userid})
 	if err != nil {
-		fmt.Println(err)
+		log.Error("couldn't retrieve team permission", "team", teamid, "user", userid, "err", err.Error())
 		return 0
 	}
 	return int(permission)
@@ -160,7 +160,6 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	var req PermissionRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		fmt.Println(err)
 		PrintError(w, "incorrect format")
 		return
 	}
@@ -202,8 +201,8 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 		_, err = query.DeleteTeamPermission(ctx, userID)
 	}
 	if err != nil {
+		log.Error("couldn't edit team permission", "userid", userID, "team", teamId, "level", proposedPermission, "error", err.Error())
 		PrintError(w, "db error")
-		fmt.Println(err)
 		return
 	}
 	PrintSuccess(w, "\"valid\"")
@@ -219,23 +218,34 @@ func GetTeamForUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	queries := UseQueries()
-	teams, err := queries.FindUserTeams(ctx, claims.Subject)
+	Teams, err := queries.FindUserTeams(ctx, claims.Subject)
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db error" }`)
+		log.Error("couldn't get user's teams", "user", claims.Subject, "err", err.Error())
+		PrintError(w, "db error")
 		return
 	}
 
-	fmt.Println(teams)
-	var output []Team
+	var Output GetTeamForUserResponse
+	var TeamList []Team
 
-	for _, row := range teams {
-		output = append(output, Team{Id: int(row.Teamid), Name: row.Name})
+	for _, row := range Teams {
+		TeamList = append(TeamList, Team{Id: int(row.Teamid), Name: row.Name})
 	}
-	output_str, err := json.Marshal(output)
+
+	Output.Open = IsServerOpen()
+	Output.Teams = TeamList
+
+	OutputBytes, err := json.Marshal(Output)
 	if err != nil {
+		PrintError(w, "couldn't create json")
 		return
 	}
-	fmt.Fprintf(w, `{ "open": %v, "teams": %s}`, IsServerOpen(), (output_str))
+	PrintSuccess(w, string(OutputBytes))
+}
+
+type GetTeamForUserResponse struct {
+	Open  bool   `json:"open"`
+	Teams []Team `json:"teams"`
 }
 
 func getTeamInformation(w http.ResponseWriter, r *http.Request) {
@@ -304,7 +314,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 
 		usr, err := user.Get(ctx, member.Userid)
 		if err != nil {
-			fmt.Println("status: invalid user id")
+			log.Warn("userid not found in clerk", "user", member.Userid)
 			continue
 		}
 		m.Name = *usr.FirstName + " " + *usr.LastName

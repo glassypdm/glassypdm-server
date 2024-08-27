@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/go-chi/chi/v5"
@@ -36,7 +37,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"access": "unauthorized"}`))
 		return
 	}
-	fmt.Println("creating commit..")
+	log.Info("creating commit..")
 	userId := claims.Subject
 	var request CommitRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
@@ -62,11 +63,8 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		Comment:   request.Message,
 		Numfiles:  int64(len(request.Files))})
 	if err != nil {
-		fmt.Println("error creating commit")
-		fmt.Fprintf(w, `
-		{
-		"status": "error"
-		}`)
+		log.Error("db couldn't create commit", "db err", err.Error())
+		PrintError(w, "db error")
 		return
 	}
 
@@ -74,7 +72,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	//for _, file := range request.Files {
 	for i := 0; i < len(request.Files); i += 2 {
 
-		// NOTE these dont add numchunks
+		// FIXME these dont add numchunks
 		if i+1 >= len(request.Files) {
 			err = qtx.InsertFileRevision(ctx, sqlcgen.InsertFileRevisionParams{
 				Projectid:  int64(request.ProjectId),
@@ -103,20 +101,21 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 				hashesMissing = append(hashesMissing, request.Files[i+1].Hash)
 				continue
 			} else {
-				fmt.Printf("error %v\n", err)
+				log.Error("unhandled error inserting file revision", "db", err)
 			}
 		}
 	}
 	durationOne := time.Since(start)
-	fmt.Println("iterating took " + durationOne.String() + " over " + fmt.Sprint(len(request.Files)) + " files")
-	asdfjkl, err := json.Marshal(hashesMissing)
+	log.Info("iterating took " + durationOne.String() + " over " + fmt.Sprint(len(request.Files)) + " files")
+	hashes_bytes, _ := json.Marshal(hashesMissing)
 	if len(hashesMissing) > 0 {
+		log.Warn("found missing hashes", "len", len(hashesMissing))
 		// respond with nb
 		fmt.Fprintf(w, `
 			{
 			"status": "nb",
 			"hashes": %v
-			}`, asdfjkl)
+			}`, hashes_bytes)
 		return
 	}
 
@@ -125,11 +124,8 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	tx.Commit()
 
 	durationTwo := time.Since(start)
-	fmt.Println("transaction took " + durationTwo.String())
-	fmt.Fprintf(w, `{
-	"status": "success",
-	"commitid": %v
-	}`, cid)
+	log.Info("transaction took " + durationTwo.String())
+	PrintSuccess(w, fmt.Sprintf("%d", cid))
 }
 
 // input: query offset=<number>
@@ -165,19 +161,23 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	project := chi.URLParam(r, "project-id")
 	pid, err := strconv.Atoi(project)
 	if err != nil {
-		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
+		PrintError(w, "incorrect format")
 		return
 	}
 
 	if r.URL.Query().Get("offset") == "" {
-		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
+		PrintError(w, "incorrect format")
 		return
 	}
 	offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
+	if err != nil {
+		PrintError(w, "incorrect format")
+		return
+	}
 
 	// check if user has read permission for project
 	if getProjectPermissionByID(userId, pid) < 1 {
-		fmt.Fprintf(w, `{ "response": "error", "error": "no permission" }`)
+		PrintError(w, "no permission")
 		return
 	}
 
@@ -186,14 +186,14 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	// get commits
 	CommitDto, err := query.ListProjectCommits(ctx, sqlcgen.ListProjectCommitsParams{Projectid: int64(pid), Offset: int64(offset)})
 	if err != nil {
-		fmt.Println(err)
+		log.Error("db error", "sql", err.Error())
 		PrintError(w, "db error")
 		return
 	}
 	// get total number
 	NumCommits, err := query.CountProjectCommits(ctx, int64(pid))
 	if err != nil {
-		fmt.Println(err)
+		log.Error("db error", "sql", err.Error())
 		PrintError(w, "db error")
 		return
 	}

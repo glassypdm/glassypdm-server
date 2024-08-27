@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 	"github.com/minio/minio-go/v7"
@@ -49,7 +50,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// note: this size here is just for parsing and not the actual size limit of the file
 	// TODO is this note correct?
-	if err := r.ParseMultipartForm(900 * (1 << 20)); err != nil { // 900 * (1 << 20) is 900 MB
+	if err := r.ParseMultipartForm(400 * (1 << 20)); err != nil { // 400 * (1 << 20) is 400 MB
 		PrintError(w, "multipart form parsing failed")
 		return
 	}
@@ -101,7 +102,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	// TODO do we need this?
 	if _, err := file.Seek(0, 0); err != nil {
 		PrintError(w, "error reading file")
-		fmt.Println(err)
+		log.Error("couldn't read file", "err", err.Error())
 		return
 	}
 
@@ -109,8 +110,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 	s3, err := generateS3Client()
 	if err != nil {
-		fmt.Println(err)
-		fmt.Fprintf(w, `{ "status": "issue connecting to s3" }`)
+		log.Error("couldn't connect to s3", "err", err.Error())
 		PrintError(w, "issue connecting to s3")
 		return
 	}
@@ -121,9 +121,9 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	err = queries.InsertHash(ctx,
 		sqlcgen.InsertHashParams{Blockhash: hashUser, S3key: hashUser, Blocksize: size})
 	if err != nil {
-		fmt.Println(err)
+		log.Error("couldn't insert hash", "db", err.Error())
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			fmt.Println("hehe duplicate")
+			log.Warn("found duplicate hash", "hash", hashUser)
 
 			// insert the chunk because we need to anyways
 			err = queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
@@ -135,7 +135,9 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 			})
 			if err != nil {
 				if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+					// chunk exists already
 				} else {
+					log.Error("couldn't insert chunk", "db", err.Error())
 					PrintError(w, "db error")
 					return
 				}
@@ -156,7 +158,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		minio.PutObjectOptions{ContentType: "application/octet-stream"})
 
 	if err != nil {
-		fmt.Println(err)
+		log.Error("couldn't connect to s3", "s3", err.Error())
 		fmt.Fprintf(w, `{ "status": "issue connecting to s3" }`)
 		return
 	}
@@ -165,6 +167,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	// if hash does not match, remove from bucket and db
 	hashCalc := hasher.Sum(nil)
 	if hashUser != hex.EncodeToString(hashCalc) {
+		log.Error("hash doesn't match", "user", hashUser, "calculated", hashCalc)
 		PrintError(w, "hash doesn't match")
 		s3.RemoveObject(
 			ctx,
@@ -184,6 +187,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		Blocksize:  size,
 	})
 	if err != nil {
+		log.Error("couldn't insert chunk", "sql", err.Error())
 		PrintError(w, "db error")
 		return
 	}
@@ -234,7 +238,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	query := UseQueries()
 	s3, err := generateS3Client()
 	if err != nil {
-		fmt.Println(err)
+		log.Error("couldn't connect to s3", "s3", err.Error())
 		PrintError(w, "issue connecting to s3")
 		return
 	}
@@ -246,8 +250,8 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 			Path:      request.Path,
 			Commitid:  int64(request.CommitId),
 		})
-
 	if err != nil {
+		log.Error("couldn't get filehash", "projectID", request.ProjectId, "filepath", request.Path, "db err", err.Error())
 		PrintError(w, "db error")
 		return
 	}
@@ -255,6 +259,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	// ping s3 for a presigned url
 	chunksDto, err := query.GetFileChunks(ctx, filehash)
 	if err != nil {
+		log.Error("coudln't get file chunks", "filehash", filehash, "db err", err.Error())
 		PrintError(w, "db error")
 		return
 	}
@@ -265,6 +270,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 		reqParams := make(url.Values)
 		url, err := s3.PresignedGetObject(ctx, os.Getenv("S3_BUCKETNAME"), chunk.Blockhash, time.Second*60*60*48, reqParams)
 		if err != nil {
+			log.Error("couldn't get presigned GET link", "s3", err.Error())
 			PrintError(w, "s3 error")
 			return
 		}

@@ -67,11 +67,13 @@ func main() {
 		// delete permission group
 	})
 
-	port := os.Getenv("PORT")
-	log.SetLevel(log.DebugLevel) // TODO only set this when we are running locally
+	if os.Getenv("DEBUG") == "1" {
+		log.SetLevel(log.DebugLevel)
+	}
 	log.SetReportCaller(true)
 	log.SetReportTimestamp(true)
 
+	port := os.Getenv("PORT")
 	log.Info("Listening on localhost", "port", port)
 	log.Debug("Listening on localhost", "port", port)
 	http.ListenAndServe(":"+port, r)

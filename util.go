@@ -5,11 +5,10 @@ import (
 	"database/sql"
 	_ "embed"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 
-	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
@@ -23,18 +22,15 @@ func IsServerOpen() bool {
 	}
 }
 func getVersion(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("brr")
 	data := struct {
 		Version string `json:"version"`
 	}{}
 	data.Version = os.Getenv("CLIENT_VERSION")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
-
 }
 
 func getConfig(w http.ResponseWriter, r *http.Request) {
-	log.Info("getting config")
 	data := struct {
 		Key  string `json:"clerk_publickey"`
 		Name string `json:"name"`
@@ -51,8 +47,7 @@ func InitDB() *sql.DB {
 	dburl := os.Getenv("TURSO_DATABASE_URL") + "?authToken=" + os.Getenv("TURSO_AUTH_TOKEN")
 	db, err := sql.Open("libsql", dburl)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to open db %s: %s", dburl, err)
-		os.Exit(1)
+		log.Fatalf("failed to open db: %s, %s", dburl, err)
 	}
 	return db
 }
@@ -68,7 +63,6 @@ func UseQueries() *sqlcgen.Queries {
 	/*
 		_, err := db.ExecContext(ctx, ddl)
 		if err != nil {
-			//fmt.Println(ddl)
 			fmt.Printf("err: %v\n", err)
 			fmt.Println("oof db")
 			os.Exit(1)

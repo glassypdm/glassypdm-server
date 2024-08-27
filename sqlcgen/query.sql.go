@@ -149,6 +149,40 @@ func (q *Queries) FindTeamPermissions(ctx context.Context, userid string) ([]int
 	return items, nil
 }
 
+const findTeamProjects = `-- name: FindTeamProjects :many
+SELECT projectid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid
+WHERE project.teamid = ?
+`
+
+type FindTeamProjectsRow struct {
+	Projectid int64  `json:"projectid"`
+	Title     string `json:"title"`
+	Name      string `json:"name"`
+}
+
+func (q *Queries) FindTeamProjects(ctx context.Context, teamid int64) ([]FindTeamProjectsRow, error) {
+	rows, err := q.db.QueryContext(ctx, findTeamProjects, teamid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindTeamProjectsRow
+	for rows.Next() {
+		var i FindTeamProjectsRow
+		if err := rows.Scan(&i.Projectid, &i.Title, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findUserInPermissionGroup = `-- name: FindUserInPermissionGroup :many
 SELECT pgroupid FROM pgmembership WHERE
 userid = ?
@@ -197,40 +231,6 @@ func (q *Queries) FindUserManagedTeams(ctx context.Context, userid string) ([]Fi
 	for rows.Next() {
 		var i FindUserManagedTeamsRow
 		if err := rows.Scan(&i.Teamid, &i.Name); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const findUserProjects = `-- name: FindUserProjects :many
-SELECT projectid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid
-WHERE project.teamid = ?
-`
-
-type FindUserProjectsRow struct {
-	Projectid int64  `json:"projectid"`
-	Title     string `json:"title"`
-	Name      string `json:"name"`
-}
-
-func (q *Queries) FindUserProjects(ctx context.Context, teamid int64) ([]FindUserProjectsRow, error) {
-	rows, err := q.db.QueryContext(ctx, findUserProjects, teamid)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []FindUserProjectsRow
-	for rows.Next() {
-		var i FindUserProjectsRow
-		if err := rows.Scan(&i.Projectid, &i.Title, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

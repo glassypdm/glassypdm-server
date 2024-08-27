@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
@@ -70,12 +71,14 @@ func GetProjectsForUser(w http.ResponseWriter, r *http.Request) {
 
 	// get user's projects
 	teams, err := queries.FindUserTeams(ctx, user)
-	_ = err
+	if err != nil {
+		log.Error("couldn't retrieve user's teams", "user", user, "err", err.Error())
+	}
 	projects := []Project{}
 	for _, team := range teams {
-		TeamProjects, err := queries.FindUserProjects(ctx, team.Teamid)
+		TeamProjects, err := queries.FindTeamProjects(ctx, team.Teamid)
 		if err != nil {
-			fmt.Println(err)
+			log.Error("couldn't retrieve team's projects", "teamid", team.Teamid, "err", err.Error())
 		}
 		for _, tp := range TeamProjects {
 			projects = append(projects, Project{Id: int(tp.Projectid), Name: tp.Title, Team: tp.Name})
@@ -113,47 +116,33 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	var request ProjectCreationRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "json error" }`)
+		PrintError(w, "incorrect format")
 		return
 	}
 
 	// check permission level in team
-	fmt.Println(request)
 	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(request.TeamID), Userid: claims.Subject})
 	if err != nil {
-		fmt.Println("a ...any")
-		fmt.Fprintf(w, `{ "status": "db error" }`)
+		PrintError(w, "db error")
 		return
 	}
 	level := int(permission)
 	if level < 2 {
-		fmt.Fprintf(w, `{ "status": "no permission" }`)
-		return
-	}
-
-	// check for unique name
-	// FIXME might be unnecessary now
-	count, err := query.CheckProjectName(ctx, sqlcgen.CheckProjectNameParams{Teamid: int64(request.TeamID), Title: request.Name})
-	if err != nil {
-		fmt.Println("project name")
-		fmt.Fprintf(w, `{ "status": "db error" }`)
-		return
-	} else if count > 0 {
-		fmt.Fprintf(w, `{ "status": "project name exists" }`)
+		PrintError(w, "insufficient permission")
 		return
 	}
 
 	pid, err := query.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int64(request.TeamID), Title: request.Name})
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db error" }`)
+		PrintError(w, "db error")
 		return
 	}
 	_, err = query.InsertCommit(ctx, sqlcgen.InsertCommitParams{Projectid: pid, Userid: claims.Subject, Comment: "Initial commit", Numfiles: 0})
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db error" }`)
+		PrintError(w, "db error")
 		return
 	}
-	fmt.Fprintf(w, `{ "status": "success" }`)
+	fmt.Fprintf(w, `{ "response": "success" }`)
 }
 
 func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
@@ -165,38 +154,41 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("pid") == "" {
-		fmt.Fprintf(w, `{ "status": "no pid supplied" }`)
+		PrintError(w, "incorrect format")
 		return
 	}
 
 	pid, err := strconv.Atoi(r.URL.Query().Get("pid"))
-	_ = err
+	if err != nil {
+		PrintError(w, "incorrect format")
+		return
+	}
 
 	query := UseQueries()
 	projectname, err := query.GetProjectInfo(ctx, int64(pid))
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 		return
 	}
 	team, err := query.GetTeamFromProject(ctx, int64(pid))
 	if err != nil {
-		fmt.Println(err.Error())
-		fmt.Fprintf(w, `{ "status": "dgb error", "db": "%s" }`, err.Error())
+		log.Error("db error", "err", err.Error())
+		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 		return
 	}
 	teamName, err := query.GetTeamName(ctx, team)
 	if err != nil {
-		fmt.Println(err.Error())
-		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+		log.Error("db error", "err", err.Error())
+		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 		return
 	}
 	cid, err := query.FindProjectInitCommit(ctx, int64(pid))
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Error("db error", "err", err.Error())
 		if err.Error() == "sql: no rows in result set" {
 			cid = -1
 		} else {
-			fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+			fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 			return
 		}
 
@@ -204,8 +196,8 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 
 	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: claims.Subject})
 	if err != nil {
-		fmt.Println("gtp")
-		fmt.Fprintf(w, `{ "status": "db error", "db": "%s" }`, err.Error())
+		log.Error("db error", "err", err.Error())
+		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 		return
 	}
 	var CanManage bool
@@ -237,7 +229,7 @@ func getProjectPermissionByID(userId string, projectId int) int {
 
 	teamId, err := queries.GetTeamByProject(ctx, int64(projectId))
 	if err != nil {
-		fmt.Println(err)
+		log.Warn("db error", "err", err.Error())
 		return 0
 	}
 
@@ -292,21 +284,15 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 
 	output, err := query.GetProjectState(ctx, int64(projectId))
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db error" }`)
+		log.Error("db error", "project", projectId, "err", err.Error())
+		PrintError(w, "db error")
 		return
 	}
 	if len(output) == 0 {
-		fmt.Println("empty")
+		log.Warn("project state output is empty")
 	}
 
-	outputjson, err := json.Marshal(output)
-	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db error" }`)
-		return
-	}
+	OutputBytes, _ := json.Marshal(output)
 
-	fmt.Fprintf(w, `{
-		"status": "success",
-		"project": %v
-	}`, string(outputjson))
+	PrintSuccess(w, string(OutputBytes))
 }

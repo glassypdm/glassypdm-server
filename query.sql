@@ -38,7 +38,7 @@ WHERE tp.userid = ?;
 SELECT userid, level FROM teampermission
 WHERE teamid = ?;
 
--- name: FindUserProjects :many
+-- name: FindTeamProjects :many
 SELECT projectid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid
 WHERE project.teamid = ?;
 
