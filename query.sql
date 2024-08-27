@@ -211,3 +211,7 @@ userid = ?;
 -- name: IsUserInPermissionGroup :one
 SELECT userid FROM pgmembership pgme, pgmapping pgma WHERE
 pgme.userid = ? AND pgma.projectid = ? AND pgma.pgroupid = pgme.pgroupid;
+
+-- name: GetTeamFromPGroup :one
+SELECT teamid FROM permissiongroup WHERE
+pgroupid = ? LIMIT 1;

@@ -5,6 +5,10 @@ import (
 	"net/http"
 )
 
+type DefaultSuccessOutput struct {
+	Message string `json:"message"`
+}
+
 func PrintError(w http.ResponseWriter, err string) {
 	fmt.Fprintf(w, `{
 			"response": "error",

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 
+	"github.com/charmbracelet/log"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -60,15 +60,19 @@ func main() {
 		r.Get("/team/by-id/{team-id}", getTeamInformation)
 		r.Get("/team/by-id/{team-id}/pgroup/list", GetPermissionGroups)
 		r.Post("/team/by-id/{team-id}/pgroup/create", CreatePermissionGroup)
-		r.Post("/team/by-id/{team-id}/pgroup/map", CreatePermissionGroup)
+		r.Post("/team/by-id/{team-id}/pgroup/map", CreatePGMapping)
 		// remove mapping
-		// add member
+		r.Post("/team/by-id/{team-id}/pgroup/add", AddUserToPG)
 		// removem member
 		// delete permission group
 	})
 
 	port := os.Getenv("PORT")
+	log.SetLevel(log.DebugLevel) // TODO only set this when we are running locally
+	log.SetReportCaller(true)
+	log.SetReportTimestamp(true)
 
-	fmt.Println("Listening on localhost:" + port)
+	log.Info("Listening on localhost", "port", port)
+	log.Debug("Listening on localhost", "port", port)
 	http.ListenAndServe(":"+port, r)
 }

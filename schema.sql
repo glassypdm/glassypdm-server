@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS permissiongroup(
     pgroupid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     teamid INTEGER NOT NULL,
     name TEXT NOT NULL,
-    FOREIGN KEY(teamid) REFERENCES team(teamid)
+    FOREIGN KEY(teamid) REFERENCES team(teamid),
+    UNIQUE(teamid, name)
 );
 
 CREATE TABLE IF NOT EXISTS pgmembership(

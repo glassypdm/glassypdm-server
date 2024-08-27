@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
@@ -33,7 +34,7 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func getConfig(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("brr")
+	log.Info("getting config")
 	data := struct {
 		Key  string `json:"clerk_publickey"`
 		Name string `json:"name"`

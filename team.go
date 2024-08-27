@@ -98,9 +98,11 @@ func checkPermissionByID(teamid int, userid string) int {
 	ctx := context.Background()
 
 	query := UseQueries()
-
+	fmt.Println(teamid)
+	fmt.Println(teamid)
 	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(teamid), Userid: userid})
 	if err != nil {
+		fmt.Println(err)
 		return 0
 	}
 	return int(permission)
