@@ -178,9 +178,9 @@ INSERT INTO pgmembership(pgroupid, userid) VALUES(?, ?);
 INSERT INTO pgmapping(pgroupid, projectid) VALUES(?, ?);
 
 -- name: ListPermissionGroupForTeam :many
-SELECT pg.pgroupid as pgroupid, pg.name as pgroup_name, p.title as project_title, p.projectid as project_id
-FROM permissiongroup pg, project p, pgmapping pgm WHERE
-pg.teamid = ? AND pg.pgroupid = pgm.pgroupid AND pgm.projectid = p.projectid AND p.teamid = pg.teamid;
+SELECT pg.pgroupid, pg.name, count(pgm.userid) as count
+FROM permissiongroup pg LEFT JOIN pgmembership pgm ON pg.pgroupid = pgm.pgroupid
+WHERE pg.teamid = ? GROUP BY pg.pgroupid;
 
 -- name: ListPermissionGroupMembership :many
 SELECT userid FROM pgmembership WHERE pgroupid = ?;

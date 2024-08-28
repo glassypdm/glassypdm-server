@@ -846,16 +846,15 @@ func (q *Queries) IsUserInPermissionGroup(ctx context.Context, arg IsUserInPermi
 }
 
 const listPermissionGroupForTeam = `-- name: ListPermissionGroupForTeam :many
-SELECT pg.pgroupid as pgroupid, pg.name as pgroup_name, p.title as project_title, p.projectid as project_id
-FROM permissiongroup pg, project p, pgmapping pgm WHERE
-pg.teamid = ? AND pg.pgroupid = pgm.pgroupid AND pgm.projectid = p.projectid AND p.teamid = pg.teamid
+SELECT pg.pgroupid, pg.name, count(pgm.userid) as count
+FROM permissiongroup pg LEFT JOIN pgmembership pgm ON pg.pgroupid = pgm.pgroupid
+WHERE pg.teamid = ? GROUP BY pg.pgroupid
 `
 
 type ListPermissionGroupForTeamRow struct {
-	Pgroupid     int64  `json:"pgroupid"`
-	PgroupName   string `json:"pgroup_name"`
-	ProjectTitle string `json:"project_title"`
-	ProjectID    int64  `json:"project_id"`
+	Pgroupid int64  `json:"pgroupid"`
+	Name     string `json:"name"`
+	Count    int64  `json:"count"`
 }
 
 func (q *Queries) ListPermissionGroupForTeam(ctx context.Context, teamid int64) ([]ListPermissionGroupForTeamRow, error) {
@@ -867,12 +866,7 @@ func (q *Queries) ListPermissionGroupForTeam(ctx context.Context, teamid int64) 
 	var items []ListPermissionGroupForTeamRow
 	for rows.Next() {
 		var i ListPermissionGroupForTeamRow
-		if err := rows.Scan(
-			&i.Pgroupid,
-			&i.PgroupName,
-			&i.ProjectTitle,
-			&i.ProjectID,
-		); err != nil {
+		if err := rows.Scan(&i.Pgroupid, &i.Name, &i.Count); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

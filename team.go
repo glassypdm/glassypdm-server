@@ -16,6 +16,18 @@ import (
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 )
 
+type TeamRole int
+
+const (
+	TeamRoleMember  = 1
+	TeamRoleManager = 2
+	TeamRoleOwner   = 3
+)
+
+func (tr TeamRole) EnumIndex() int {
+	return int(tr)
+}
+
 type Member struct {
 	EmailID string `json:"emailID"`
 	Name    string `json:"name"`

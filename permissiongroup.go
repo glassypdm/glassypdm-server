@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
@@ -87,7 +88,10 @@ func CreatePGMapping(w http.ResponseWriter, r *http.Request) {
 	queries := UseQueries()
 	team, err := queries.GetTeamFromProject(ctx, int64(request.ProjectID))
 	if err != nil {
-		// TODO if project doesnt exist return a different error
+		if err == sql.ErrNoRows {
+			log.Error("db: team not found", "project", request.ProjectID)
+			PrintError(w, "team not found")
+		}
 		PrintError(w, "db error")
 		return
 	}
@@ -131,8 +135,10 @@ func GetPermissionGroups(w http.ResponseWriter, r *http.Request) {
 		PrintError(w, "db error")
 		return
 	}
+	log.Debug("permission groups:", "groups", groups)
 	groups_json, err := json.Marshal(groups)
 	if err != nil {
+		log.Error("couldn't convert json", "groups", groups)
 		PrintError(w, "db error: couldn't convert to json")
 		return
 	}
