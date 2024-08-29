@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	_ "embed"
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 
+	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
@@ -128,4 +128,26 @@ func canUserUpload(userId string) bool {
 		return true
 	}
 	return false
+}
+
+type User struct {
+	UserId  string `json:"user_id"`
+	Name    string `json:"name"`
+	EmailId string `json:"email_id"`
+}
+
+func GetUserByID(userId string) (User, bool) {
+	ctx := context.Background()
+	var output User
+	usr, err := user.Get(ctx, userId)
+	if err != nil {
+		log.Error("couldn't find user", "user", userId, "error", err.Error())
+		return output, false
+	}
+
+	output.UserId = userId
+	output.Name = *usr.FirstName + " " + *usr.LastName
+	output.EmailId = *usr.PrimaryEmailAddressID
+
+	return output, true
 }

@@ -203,3 +203,109 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 
 	PrintSuccess(w, "user successfully added")
 }
+
+func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	user := claims.Subject
+	hehe := r.URL.Query().Get("pgroup_id")
+	pgroup, err := strconv.Atoi(hehe)
+	if err != nil {
+		log.Error("incorrect query", "param", hehe)
+		PrintError(w, "incorrect format")
+		return
+	}
+
+	queries := UseQueries()
+
+	// make sure user has permission to get information about the permission group
+	team, err := queries.GetTeamFromPGroup(ctx, int64(pgroup))
+	if err != nil {
+		log.Error("error fetching team from permission group", "err", err.Error())
+		PrintError(w, "db error")
+		return
+	}
+	level := checkPermissionByID(int(team), user)
+	if level <= 0 {
+		log.Debug("user's permission was insufficient", "user", user, "level", level)
+		PrintError(w, "insufficient permission")
+		return
+	}
+
+	// fetch projects for team
+	TeamProjects, err := queries.FindTeamProjects(ctx, team)
+	if err != nil {
+		PrintError(w, "db error")
+		return
+	}
+
+	// fetch projects for permission group
+	pgProjects, err := queries.GetPermissionGroupMapping(ctx, int64(pgroup))
+	if err != nil {
+		PrintError(w, "db error")
+		return
+	}
+
+	// fetch membership for permission group
+	pgMembership, err := queries.ListPermissionGroupMembership(ctx, int64(pgroup))
+	if err != nil {
+		PrintError(w, "db error")
+		return
+	}
+
+	// fetch membership for team
+	TeamMembership, err := queries.GetTeamMembership(ctx, team)
+	if err != nil {
+		PrintError(w, "db error")
+		return
+	}
+
+	var output PermissionGroupInfo
+	// initialize arrays so that they don't return as null
+	output.TeamMembership = make([]User, 0)
+	output.PGroupMembership = make([]User, 0)
+	output.TeamProjects = make([]Project, 0)
+	output.PGroupProjects = make([]Project, 0)
+	for _, project := range TeamProjects {
+		output.TeamProjects = append(output.TeamProjects,
+			Project{Id: int(project.Projectid), Name: project.Title, Team: project.Name})
+	}
+
+	for _, project := range pgProjects {
+		output.PGroupProjects = append(output.PGroupProjects,
+			Project{Id: int(project.Projectid), Name: project.Title, Team: ""})
+	}
+
+	for _, user := range TeamMembership {
+		usr, err := GetUserByID(user.Userid)
+		if !err {
+			log.Warn("couldn't find user", usr)
+			continue
+		}
+		output.TeamMembership = append(output.TeamMembership, usr)
+	}
+
+	for _, user := range pgMembership {
+		usr, err := GetUserByID(user)
+		if !err {
+			log.Warn("couldn't find user", usr)
+			continue
+		}
+		output.PGroupMembership = append(output.PGroupMembership, usr)
+	}
+
+	output_bytes, _ := json.Marshal(output)
+	PrintSuccess(w, string(output_bytes))
+}
+
+type PermissionGroupInfo struct {
+	TeamProjects     []Project `json:"team_projects"`
+	PGroupProjects   []Project `json:"pg_projects"`
+	TeamMembership   []User    `json:"team_membership"`
+	PGroupMembership []User    `json:"pg_membership"`
+}

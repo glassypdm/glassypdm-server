@@ -61,6 +61,7 @@ func main() {
 		r.Get("/team/by-id/{team-id}/pgroup/list", GetPermissionGroups)
 		r.Post("/team/by-id/{team-id}/pgroup/create", CreatePermissionGroup)
 		r.Post("/team/by-id/{team-id}/pgroup/map", CreatePGMapping)
+		r.Get("/pgroup/info", GetPermissionGroupInfo)
 		// remove mapping
 		r.Post("/team/by-id/{team-id}/pgroup/add", AddUserToPG)
 		// removem member
@@ -75,6 +76,5 @@ func main() {
 
 	port := os.Getenv("PORT")
 	log.Info("Listening on localhost", "port", port)
-	log.Debug("Listening on localhost", "port", port)
 	http.ListenAndServe(":"+port, r)
 }
