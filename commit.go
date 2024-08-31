@@ -125,7 +125,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 
 	durationTwo := time.Since(start)
 	log.Info("transaction took " + durationTwo.String())
-	PrintSuccess(w, fmt.Sprintf("%d", cid))
+	PrintSuccess(w, fmt.Sprintf("commit_id: %d", cid))
 }
 
 // input: query offset=<number>

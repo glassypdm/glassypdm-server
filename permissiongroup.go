@@ -111,7 +111,10 @@ func CreatePGMapping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	PrintSuccess(w, "mapping successful")
+	var output DefaultSuccessOutput
+	output.Message = "mapping successful"
+	output_bytes, _ := json.Marshal(output)
+	PrintSuccess(w, string(output_bytes))
 }
 
 func GetPermissionGroups(w http.ResponseWriter, r *http.Request) {
@@ -194,14 +197,18 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// at this point member is in team, so add them to the permission group
+	// TODO change query to remove them if they are in the pgroup already
 	err = queries.AddMemberToPermissionGroup(ctx,
 		sqlcgen.AddMemberToPermissionGroupParams{Userid: request.Member, Pgroupid: int64(request.PGroupID)})
 	if err != nil {
 		PrintError(w, "db error")
 		return
 	}
+	var output DefaultSuccessOutput
+	output.Message = "user successfully added"
+	output_bytes, _ := json.Marshal(output)
 
-	PrintSuccess(w, "user successfully added")
+	PrintSuccess(w, string(output_bytes))
 }
 
 func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {

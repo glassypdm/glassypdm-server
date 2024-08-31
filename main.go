@@ -60,10 +60,10 @@ func main() {
 		r.Get("/team/by-id/{team-id}", getTeamInformation)
 		r.Get("/team/by-id/{team-id}/pgroup/list", GetPermissionGroups)
 		r.Post("/team/by-id/{team-id}/pgroup/create", CreatePermissionGroup)
-		r.Post("/team/by-id/{team-id}/pgroup/map", CreatePGMapping)
+		r.Post("/pgroup/map", CreatePGMapping)
 		r.Get("/pgroup/info", GetPermissionGroupInfo)
 		// remove mapping
-		r.Post("/team/by-id/{team-id}/pgroup/add", AddUserToPG)
+		r.Post("/pgroup/add", AddUserToPG)
 		// removem member
 		// delete permission group
 	})
