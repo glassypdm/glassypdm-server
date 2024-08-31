@@ -55,13 +55,7 @@ func CreatePermissionGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	output := DefaultSuccessOutput{Message: "permission group created"}
-	output_bytes, err := json.Marshal(output)
-	if err != nil {
-		PrintError(w, "json error but creation successful")
-		return
-	}
-	PrintSuccess(w, string(output_bytes))
+	PrintDefaultSuccess(w, "permission group created")
 }
 
 type PGMappingRequest struct {
@@ -111,10 +105,7 @@ func CreatePGMapping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var output DefaultSuccessOutput
-	output.Message = "mapping successful"
-	output_bytes, _ := json.Marshal(output)
-	PrintSuccess(w, string(output_bytes))
+	PrintDefaultSuccess(w, "mapping successful")
 }
 
 func GetPermissionGroups(w http.ResponseWriter, r *http.Request) {
@@ -204,11 +195,7 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 		PrintError(w, "db error")
 		return
 	}
-	var output DefaultSuccessOutput
-	output.Message = "user successfully added"
-	output_bytes, _ := json.Marshal(output)
-
-	PrintSuccess(w, string(output_bytes))
+	PrintDefaultSuccess(w, "user successfully added")
 }
 
 func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {

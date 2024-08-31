@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -23,4 +24,11 @@ func PrintSuccess(w http.ResponseWriter, output string) {
 			"body": %v
 			}`,
 		output)
+}
+
+func PrintDefaultSuccess(w http.ResponseWriter, msg string) {
+	output := DefaultSuccessOutput{Message: msg}
+	output_bytes, _ := json.Marshal(output)
+
+	PrintSuccess(w, string(output_bytes))
 }

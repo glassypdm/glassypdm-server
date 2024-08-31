@@ -143,7 +143,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			PrintSuccess(w, "duplicate found")
+			PrintDefaultSuccess(w, "duplicate found")
 			return
 		}
 	}
@@ -191,7 +191,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		PrintError(w, "db error")
 		return
 	}
-	PrintSuccess(w, "upload successful")
+	PrintDefaultSuccess(w, "upload successful")
 }
 
 type FileChunk struct {

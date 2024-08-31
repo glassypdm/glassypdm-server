@@ -123,9 +123,15 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	// we should consider returning more info too
 	tx.Commit()
 
+	output := CreateCommitOutput{CommitId: int(cid)}
+	output_bytes, _ := json.Marshal(output)
 	durationTwo := time.Since(start)
 	log.Info("transaction took " + durationTwo.String())
-	PrintSuccess(w, fmt.Sprintf("commit_id: %d", cid))
+	PrintSuccess(w, string(output_bytes))
+}
+
+type CreateCommitOutput struct {
+	CommitId int `json:"commit_id"`
 }
 
 // input: query offset=<number>

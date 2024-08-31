@@ -217,7 +217,7 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 		PrintError(w, "db error")
 		return
 	}
-	PrintSuccess(w, "\"valid\"")
+	PrintDefaultSuccess(w, "valid")
 }
 
 func GetTeamForUser(w http.ResponseWriter, r *http.Request) {
