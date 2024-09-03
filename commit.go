@@ -42,14 +42,14 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	var request CommitRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		fmt.Fprintf(w, `{ "response": "bad json" }`)
+		PrintError(w, "bad json")
 		return
 	}
 
 	// check permission
 	projectPermission := getProjectPermissionByID(userId, request.ProjectId)
 	if projectPermission < 2 {
-		fmt.Fprintf(w, `{ "response": "no permission" }`)
+		PrintError(w, "no permission")
 		return
 	}
 	start := time.Now()
@@ -111,11 +111,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	if len(hashesMissing) > 0 {
 		log.Warn("found missing hashes", "len", len(hashesMissing))
 		// respond with nb
-		fmt.Fprintf(w, `
-			{
-			"status": "nb",
-			"hashes": %v
-			}`, hashes_bytes)
+		PrintResponse(w, "nb", string(hashes_bytes))
 		return
 	}
 

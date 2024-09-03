@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -159,7 +158,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error("couldn't connect to s3", "s3", err.Error())
-		fmt.Fprintf(w, `{ "status": "issue connecting to s3" }`)
+		PrintError(w, "issue connecting to s3")
 		return
 	}
 
@@ -216,7 +215,7 @@ type DownloadRequest struct {
 func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	if !ok {
+	if !ok && claims == nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"access": "unauthorized"}`))
 		return

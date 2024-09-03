@@ -10,6 +10,13 @@ type DefaultSuccessOutput struct {
 	Message string `json:"message"`
 }
 
+func PrintResponse(w http.ResponseWriter, response string, output string) {
+	fmt.Fprintf(w, `{
+	"response": "%v",
+	"body": %v
+	}`, response, output)
+}
+
 func PrintError(w http.ResponseWriter, err string) {
 	fmt.Fprintf(w, `{
 			"response": "error",

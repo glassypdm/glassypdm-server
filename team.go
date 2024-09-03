@@ -48,7 +48,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if os.Getenv("OPEN_TEAMS") == "0" {
-		fmt.Fprintf(w, `{ "status": "disabled" }`)
+		PrintDefaultSuccess(w, "disabled")
 		return
 	}
 	query := UseQueries()
@@ -56,7 +56,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	var request TeamCreationRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "json bad" }`)
+		PrintError(w, "json bad")
 		return
 	}
 
@@ -64,9 +64,9 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	id, err := query.InsertTeam(ctx, request.Name)
 	if err != nil {
 		if strings.Contains(strings.Split(err.Error(), "SQLite error: ")[1], "UNIQUE constraint failed") {
-			fmt.Fprintf(w, `{ "status": "error", "message": "team name exists already" }`)
+			PrintError(w, "team name exists already")
 		} else {
-			fmt.Fprintf(w, `{ "status": "error", "message": "db error" }`)
+			PrintError(w, "db error")
 		}
 		return
 	}
@@ -76,7 +76,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 		log.Error("couldn't insert owner permission", "err", err.Error(), "teamID", id, "userID", claims.Subject)
 	}
 
-	fmt.Fprintf(w, `{ "status": "success" }`)
+	PrintDefaultSuccess(w, "team created")
 }
 
 // output meaning
@@ -272,7 +272,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 	teamIdStr := chi.URLParam(r, "team-id")
 	teamId, err := strconv.Atoi(teamIdStr)
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "incorrect format" }`)
+		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
 		return
 	}
 
@@ -280,7 +280,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 	// check if team exists
 	name, err := query.GetTeamName(ctx, int64(teamId))
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "team DNE" }`)
+		fmt.Fprintf(w, `{ "response": "team DNE" }`)
 		return
 	}
 
@@ -289,7 +289,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 	// if level is negative, you are not in the team
 	// and do not have permission to see team membership
 	if level < 0 {
-		fmt.Fprintf(w, `{ "status": "no permission" }`)
+		fmt.Fprintf(w, `{ "response": "no permission" }`)
 		return
 	}
 
@@ -306,7 +306,8 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 
 	memberdto, err := query.GetTeamMembership(ctx, int64(teamId))
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "db error" }`)
+
+		fmt.Fprintf(w, `{ "response": "db error" }`)
 		return
 	}
 	var members []Member
@@ -336,16 +337,17 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 		members = append(members, m)
 	}
 
-	m, err := json.Marshal(members)
-	if err != nil {
-		fmt.Fprintf(w, `{ "status": "json error" }`)
-		return
+	output := TeamInformation{
+		TeamName: name,
+		Role:     levelStr,
+		Members:  members,
 	}
-	fmt.Fprintf(w, `
-	{
-		"status": "ok",
-		"teamName": "%s",
-		"role":"%s",
-		"members": %s
-	}`, name, levelStr, string(m))
+	output_bytes, _ := json.Marshal(output)
+	PrintSuccess(w, string(output_bytes))
+}
+
+type TeamInformation struct {
+	TeamName string   `json:"team_name"`
+	Role     string   `json:"role"`
+	Members  []Member `json:"members"`
 }

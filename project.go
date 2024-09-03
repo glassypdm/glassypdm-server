@@ -142,7 +142,7 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 		PrintError(w, "db error")
 		return
 	}
-	fmt.Fprintf(w, `{ "response": "success" }`)
+	PrintDefaultSuccess(w, "project created")
 }
 
 func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
@@ -269,13 +269,11 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	projectIdStr := chi.URLParam(r, "project-id")
 	projectId, err := strconv.Atoi(projectIdStr)
 	if err != nil {
-		fmt.Fprintf(w, `{ "status": "incorrect format" }`)
+		PrintError(w, "incorrect format")
 	}
 
 	if getProjectPermissionByID(claims.Subject, projectId) < 1 {
-		fmt.Fprintf(w, `{
-		"status": "no permission"
-		}`)
+		PrintError(w, "insufficient permission")
 		return
 	}
 
