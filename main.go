@@ -42,19 +42,21 @@ func main() {
 	r.Get("/version", getVersion)
 	r.Get("/client-config", getConfig)
 
+	// TODO protect them
+	r.Post("/store/download", GetS3Download)
+	r.Post("/store/request", HandleUpload)
+
 	// Clerk-protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(clerkhttp.WithHeaderAuthorization())
 		r.Get("/permission", GetPermission)
 		r.Post("/permission", SetPermission)
-		r.Post("/store/request", HandleUpload)
 		r.Post("/commit", CreateCommit)
 		r.Get("/commit/select/by-project/{project-id}", GetCommits)
 		r.Post("/project", CreateProject)
 		r.Get("/project/info", GetProjectInfo)
 		r.Get("/project/user", GetProjectsForUser)
 		r.Get("/project/status/by-id/{project-id}", GetProjectState)
-		r.Post("/store/download", GetS3Download)
 		r.Post("/team", CreateTeam)
 		r.Get("/team", GetTeamForUser)
 		r.Get("/team/by-id/{team-id}", getTeamInformation)
@@ -64,6 +66,7 @@ func main() {
 		r.Get("/pgroup/info", GetPermissionGroupInfo)
 		// remove mapping
 		r.Post("/pgroup/add", AddUserToPG)
+		r.Post("/pgroup/remove", RemoveUserFromPG)
 		// removem member
 		// delete permission group
 	})

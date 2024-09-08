@@ -11,6 +11,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
+	"github.com/clerk/clerk-sdk-go/v2/emailaddress"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
@@ -29,9 +30,9 @@ func (tr TeamRole) EnumIndex() int {
 }
 
 type Member struct {
-	EmailID string `json:"emailID"`
-	Name    string `json:"name"`
-	Role    string `json:"role"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+	Role  string `json:"role"`
 }
 
 type TeamCreationRequest struct {
@@ -331,9 +332,13 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		m.Name = *usr.FirstName + " " + *usr.LastName
-		// we don't send the actual email address
-		// for slightly better security
-		m.EmailID = *usr.PrimaryEmailAddressID
+		email, err := emailaddress.Get(ctx, *usr.PrimaryEmailAddressID)
+		if err != nil {
+			log.Warn("couldn't get email from clerk", "emailID", *usr.PrimaryEmailAddressID)
+			m.Email = ""
+		} else {
+			m.Email = email.EmailAddress
+		}
 		members = append(members, m)
 	}
 

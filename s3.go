@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -40,12 +39,6 @@ steps:
 */
 func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"access": "unauthorized"}`))
-		return
-	}
 
 	// note: this size here is just for parsing and not the actual size limit of the file
 	// TODO is this note correct?
@@ -54,8 +47,14 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	UserId := r.FormValue("user_id")
+	if UserId == "" {
+		PrintError(w, "form format incorrect")
+		return
+	}
+
 	// ensure user can upload to at least one project/team
-	if !canUserUpload(claims.Subject) {
+	if !canUserUpload(UserId) {
 		PrintError(w, "no upload permission")
 		return
 	}
@@ -210,16 +209,11 @@ type DownloadRequest struct {
 	ProjectId int    `json:"project_id"`
 	Path      string `json:"path"`
 	CommitId  int    `json:"commit_id"`
+	UserId    string `json:"user_id"`
 }
 
 func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	if !ok && claims == nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"access": "unauthorized"}`))
-		return
-	}
 
 	var request DownloadRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
@@ -229,7 +223,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check permission level
-	if getProjectPermissionByID(claims.Subject, request.ProjectId) < 1 {
+	if getProjectPermissionByID(request.UserId, request.ProjectId) < 1 {
 		PrintError(w, "no permission")
 		return
 	}

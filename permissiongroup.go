@@ -139,9 +139,51 @@ func GetPermissionGroups(w http.ResponseWriter, r *http.Request) {
 	PrintSuccess(w, string(groups_json))
 }
 
-type AddUserToPGroupRequest struct {
+type UserPGroupRequest struct {
 	Member   string `json:"member"`
 	PGroupID int    `json:"pgroup_id"`
+}
+
+func RemoveUserFromPG(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+
+	var request UserPGroupRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		PrintError(w, "bad json")
+		return
+	}
+
+	queries := UseQueries()
+
+	// check if user has permission to manage permission groups
+	// i.e. is a manager
+	team, err := queries.GetTeamFromPGroup(ctx, int64(request.PGroupID))
+	if err != nil {
+		PrintError(w, "db error")
+		return
+	}
+	level := checkPermissionByID(int(team), claims.Subject)
+	if level < 2 {
+		PrintError(w, "insufficient permission")
+		return
+	}
+
+	err = queries.RemoveMemberFromPermissionGroup(ctx,
+		sqlcgen.RemoveMemberFromPermissionGroupParams{
+			Userid:   request.Member,
+			Pgroupid: int64(request.PGroupID),
+		})
+	if err != nil {
+		PrintError(w, "db error")
+	}
+	PrintDefaultSuccess(w, "member removed")
 }
 
 func AddUserToPG(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +195,7 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request AddUserToPGroupRequest
+	var request UserPGroupRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		PrintError(w, "bad json")
@@ -188,7 +230,6 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// at this point member is in team, so add them to the permission group
-	// TODO change query to remove them if they are in the pgroup already
 	err = queries.AddMemberToPermissionGroup(ctx,
 		sqlcgen.AddMemberToPermissionGroupParams{Userid: request.Member, Pgroupid: int64(request.PGroupID)})
 	if err != nil {
