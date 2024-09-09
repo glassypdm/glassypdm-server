@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	_ "embed"
 	"encoding/json"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	_ "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 )
 
@@ -41,38 +41,11 @@ func getConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(data)
 }
 
-var db_pool sql.DB
 var queries sqlcgen.Queries
-
-func InitDB() *sql.DB {
-	dburl := os.Getenv("TURSO_DATABASE_URL") + "?authToken=" + os.Getenv("TURSO_AUTH_TOKEN")
-	db, err := sql.Open("libsql", dburl)
-	if err != nil {
-		log.Fatalf("failed to open db: %s, %s", dburl, err)
-	}
-	return db
-}
+var db_pool pgxpool.Pool
 
 //go:embed schema.sql
 var ddl string
-
-func UseQueries() *sqlcgen.Queries {
-	//ctx := context.Background()
-	//conn, _ := db_pool.Conn(ctx)
-	// ensure schema.sql matches with what
-	// is actually in the database
-	/*
-		_, err := db.ExecContext(ctx, ddl)
-		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			fmt.Println("oof db")
-			os.Exit(1)
-		}
-	*/
-
-	queries := sqlcgen.New(&db_pool)
-	return queries
-}
 
 func getUserIDByEmail(email string) string {
 	ctx := context.Background()

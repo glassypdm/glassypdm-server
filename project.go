@@ -120,7 +120,7 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check permission level in team
-	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(request.TeamID), Userid: claims.Subject})
+	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int32(request.TeamID), Userid: claims.Subject})
 	if err != nil {
 		PrintError(w, "db error")
 		return
@@ -131,7 +131,7 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pid, err := queries.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int64(request.TeamID), Title: request.Name})
+	pid, err := queries.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int32(request.TeamID), Title: request.Name})
 	if err != nil {
 		PrintError(w, "db error")
 		return
@@ -163,12 +163,12 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectname, err := queries.GetProjectInfo(ctx, int64(pid))
+	projectname, err := queries.GetProjectInfo(ctx, int32(pid))
 	if err != nil {
 		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 		return
 	}
-	team, err := queries.GetTeamFromProject(ctx, int64(pid))
+	team, err := queries.GetTeamFromProject(ctx, int32(pid))
 	if err != nil {
 		log.Error("db error", "err", err.Error())
 		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
@@ -180,7 +180,7 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 		return
 	}
-	cid, err := queries.FindProjectInitCommit(ctx, int64(pid))
+	cid, err := queries.FindProjectInitCommit(ctx, int32(pid))
 	if err != nil {
 		log.Error("db error", "err", err.Error())
 		if err.Error() == "sql: no rows in result set" {
@@ -226,7 +226,7 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 func getProjectPermissionByID(userId string, projectId int) int {
 	ctx := context.Background()
 
-	teamId, err := queries.GetTeamByProject(ctx, int64(projectId))
+	teamId, err := queries.GetTeamByProject(ctx, int32(projectId))
 	if err != nil {
 		log.Warn("db error", "err", err.Error())
 		return 0
@@ -241,7 +241,7 @@ func getProjectPermissionByID(userId string, projectId int) int {
 	}
 
 	// TODO test
-	membership, err := queries.IsUserInPermissionGroup(ctx, sqlcgen.IsUserInPermissionGroupParams{Userid: userId, Projectid: int64(projectId)})
+	membership, err := queries.IsUserInPermissionGroup(ctx, sqlcgen.IsUserInPermissionGroupParams{Userid: userId, Projectid: int32(projectId)})
 	if err == sql.ErrNoRows {
 		return 1 // read only
 	} else if err != nil {
@@ -277,7 +277,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get project state
-	output, err := queries.GetProjectState(ctx, int64(projectId))
+	output, err := queries.GetProjectState(ctx, int32(projectId))
 	if err != nil {
 		log.Error("db error", "project", projectId, "err", err.Error())
 		PrintError(w, "db error")

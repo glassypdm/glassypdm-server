@@ -110,7 +110,7 @@ func checkPermissionByEmail(email string, teamid int) int {
 func checkPermissionByID(teamid int, userid string) int {
 	ctx := context.Background()
 
-	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(teamid), Userid: userid})
+	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int32(teamid), Userid: userid})
 	if err != nil {
 		log.Error("couldn't retrieve team permission", "team", teamid, "user", userid, "err", err.Error())
 		return 0
@@ -204,7 +204,7 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	// otherwise upsert teampermission
 	// TODO handle errors
 	if proposedPermission != -4 {
-		_, err = queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int64(teamId), Level: int64(proposedPermission)})
+		_, err = queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int32(teamId), Level: int32(proposedPermission)})
 
 	} else {
 		_, err = queries.DeleteTeamPermission(ctx, userID)
@@ -273,7 +273,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check if team exists
-	name, err := queries.GetTeamName(ctx, int64(teamId))
+	name, err := queries.GetTeamName(ctx, int32(teamId))
 	if err != nil {
 		fmt.Fprintf(w, `{ "response": "team DNE" }`)
 		return
@@ -299,7 +299,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 		levelStr = "Undefined"
 	}
 
-	memberdto, err := queries.GetTeamMembership(ctx, int64(teamId))
+	memberdto, err := queries.GetTeamMembership(ctx, int32(teamId))
 	if err != nil {
 
 		fmt.Fprintf(w, `{ "response": "db error" }`)

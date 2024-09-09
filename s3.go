@@ -83,8 +83,8 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	size := header.Size
 
-	cidx, err1 := strconv.ParseInt(ChunkIndex, 10, 64)
-	numchunks, err2 := strconv.ParseInt(NumChunks, 10, 64)
+	cidx, err1 := strconv.ParseInt(ChunkIndex, 10, 32)
+	numchunks, err2 := strconv.ParseInt(NumChunks, 10, 32)
 	if err1 != nil || err2 != nil {
 		PrintError(w, "form format incorrect")
 		return
@@ -115,7 +115,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// check if object exists in S3 already
 	err = queries.InsertHash(ctx,
-		sqlcgen.InsertHashParams{Blockhash: hashUser, S3key: hashUser, Blocksize: size})
+		sqlcgen.InsertHashParams{Blockhash: hashUser, S3key: hashUser, Blocksize: int32(size)})
 	if err != nil {
 		log.Error("couldn't insert hash", "db", err.Error())
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -123,11 +123,11 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 			// insert the chunk because we need to anyways
 			err = queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
-				Chunkindex: cidx,
-				Numchunks:  numchunks,
+				Chunkindex: int32(cidx),
+				Numchunks:  int32(numchunks),
 				Filehash:   FileHash,
 				Blockhash:  hashUser,
-				Blocksize:  size,
+				Blocksize:  int32(size),
 			})
 			if err != nil {
 				if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -176,11 +176,11 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
-		Chunkindex: cidx,
-		Numchunks:  numchunks,
+		Chunkindex: int32(cidx),
+		Numchunks:  int32(numchunks),
 		Filehash:   FileHash,
 		Blockhash:  hashUser,
-		Blocksize:  size,
+		Blocksize:  int32(size),
 	})
 	if err != nil {
 		log.Error("couldn't insert chunk", "sql", err.Error())
@@ -236,9 +236,9 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	// get filehash from filepath+projectid
 	filehash, err := queries.GetFileHash(ctx,
 		sqlcgen.GetFileHashParams{
-			Projectid: int64(request.ProjectId),
+			Projectid: int32(request.ProjectId),
 			Path:      request.Path,
-			Commitid:  int64(request.CommitId),
+			Commitid:  int32(request.CommitId),
 		})
 	if err != nil {
 		log.Error("couldn't get filehash", "projectID", request.ProjectId, "filepath", request.Path, "db err", err.Error())

@@ -54,20 +54,20 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	}
 	start := time.Now()
 
-	tx, err := db_pool.Begin()
+	tx, err := db_pool.Begin(ctx)
 	if err != nil {
 		log.Error("couldn't create transaction", "error", err)
 		PrintError(w, "db error")
 		return
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 	qtx := queries.WithTx(tx)
 	// make commit, get new commitid
 	cid, err := qtx.InsertCommit(ctx, sqlcgen.InsertCommitParams{
-		Projectid: int64(request.ProjectId),
+		Projectid: int32(request.ProjectId),
 		Userid:    userId,
 		Comment:   request.Message,
-		Numfiles:  int64(len(request.Files))})
+		Numfiles:  int32(len(request.Files))})
 	if err != nil {
 		log.Error("db couldn't create commit", "db err", err)
 		PrintError(w, "db error")
@@ -81,23 +81,23 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		// FIXME these dont add numchunks
 		if i+1 >= len(request.Files) {
 			err = qtx.InsertFileRevision(ctx, sqlcgen.InsertFileRevisionParams{
-				Projectid:  int64(request.ProjectId),
+				Projectid:  int32(request.ProjectId),
 				Path:       request.Files[i].Path,
 				Commitid:   cid,
 				Filehash:   request.Files[i].Hash,
-				Changetype: int64(request.Files[i].ChangeType)})
+				Changetype: int32(request.Files[i].ChangeType)})
 		} else {
 			err = qtx.InsertTwoFileRevisions(ctx, sqlcgen.InsertTwoFileRevisionsParams{
-				Projectid:    int64(request.ProjectId),
+				Projectid:    int32(request.ProjectId),
 				Path:         request.Files[i].Path,
 				Commitid:     cid,
 				Filehash:     request.Files[i].Hash,
-				Changetype:   int64(request.Files[i].ChangeType),
-				Projectid_2:  int64(request.ProjectId),
+				Changetype:   int32(request.Files[i].ChangeType),
+				Projectid_2:  int32(request.ProjectId),
 				Path_2:       request.Files[i+1].Path,
 				Commitid_2:   cid,
 				Filehash_2:   request.Files[i+1].Hash,
-				Changetype_2: int64(request.Files[i+1].ChangeType)})
+				Changetype_2: int32(request.Files[i+1].ChangeType)})
 		}
 
 		if err != nil {
@@ -125,7 +125,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 
 	// no hashes missing, so commit the transaction
 	// we should consider returning more info too
-	tx.Commit()
+	tx.Commit(ctx)
 
 	output := CreateCommitOutput{CommitId: int(cid)}
 	output_bytes, _ := json.Marshal(output)
@@ -192,14 +192,14 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get commits
-	CommitDto, err := queries.ListProjectCommits(ctx, sqlcgen.ListProjectCommitsParams{Projectid: int64(pid), Offset: int64(offset)})
+	CommitDto, err := queries.ListProjectCommits(ctx, sqlcgen.ListProjectCommitsParams{Projectid: int32(pid), Offset: int32(offset)})
 	if err != nil {
 		log.Error("db error", "sql", err.Error())
 		PrintError(w, "db error")
 		return
 	}
 	// get total number
-	NumCommits, err := queries.CountProjectCommits(ctx, int64(pid))
+	NumCommits, err := queries.CountProjectCommits(ctx, int32(pid))
 	if err != nil {
 		log.Error("db error", "sql", err.Error())
 		PrintError(w, "db error")
@@ -219,7 +219,7 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 		// TODO verify commit number
 		CommitDescriptions = append(CommitDescriptions, CommitDescription{
 			CommitId:     int(Commit.Commitid),
-			CommitNumber: int(Commit.Cno.Int64),
+			CommitNumber: int(Commit.Cno.Int32),
 			NumFiles:     int(Commit.Numfiles),
 			Comment:      Commit.Comment,
 			Timestamp:    int(Commit.Timestamp),

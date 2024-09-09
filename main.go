@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 
 	"github.com/joho/godotenv"
 
@@ -16,13 +19,19 @@ import (
 )
 
 func main() {
-
+	ctx := context.Background()
 	godotenv.Load()
 
 	clerk.SetKey(os.Getenv("CLERK_SECRETKEY"))
 
-	db_pool = *InitDB()
-	queries = *UseQueries()
+	// TODO url
+	db_pool, err := pgxpool.New(ctx, "")
+	if err != nil {
+		log.Fatal("could not connect to db", "db error", err)
+	}
+	defer db_pool.Close()
+
+	queries = *sqlcgen.New(db_pool)
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
