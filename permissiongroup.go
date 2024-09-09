@@ -43,7 +43,6 @@ func CreatePermissionGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// attempt to create permission group
-	queries := UseQueries()
 	err = queries.CreatePermissionGroup(ctx,
 		sqlcgen.CreatePermissionGroupParams{Teamid: int64(request.TeamID), Name: request.PGroupName})
 	if err != nil {
@@ -79,7 +78,6 @@ func CreatePGMapping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	queries := UseQueries()
 	team, err := queries.GetTeamFromProject(ctx, int64(request.ProjectID))
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -123,7 +121,6 @@ func GetPermissionGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	queries := UseQueries()
 	groups, err := queries.ListPermissionGroupForTeam(ctx, int64(teamId))
 	if err != nil {
 		PrintError(w, "db error")
@@ -159,8 +156,6 @@ func RemoveUserFromPG(w http.ResponseWriter, r *http.Request) {
 		PrintError(w, "bad json")
 		return
 	}
-
-	queries := UseQueries()
 
 	// check if user has permission to manage permission groups
 	// i.e. is a manager
@@ -201,8 +196,6 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 		PrintError(w, "bad json")
 		return
 	}
-
-	queries := UseQueries()
 
 	// check if user has permission to manage permission groups
 	// i.e. is a manager
@@ -255,8 +248,6 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 		PrintError(w, "incorrect format")
 		return
 	}
-
-	queries := UseQueries()
 
 	// make sure user has permission to get information about the permission group
 	team, err := queries.GetTeamFromPGroup(ctx, int64(pgroup))

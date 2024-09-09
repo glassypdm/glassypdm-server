@@ -52,8 +52,6 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 		PrintDefaultSuccess(w, "disabled")
 		return
 	}
-	query := UseQueries()
-
 	var request TeamCreationRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
@@ -62,7 +60,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create team entry and add user as owner
-	id, err := query.InsertTeam(ctx, request.Name)
+	id, err := queries.InsertTeam(ctx, request.Name)
 	if err != nil {
 		if strings.Contains(strings.Split(err.Error(), "SQLite error: ")[1], "UNIQUE constraint failed") {
 			PrintError(w, "team name exists already")
@@ -72,7 +70,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Teamid: id, Userid: claims.Subject, Level: 3})
+	_, err = queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Teamid: id, Userid: claims.Subject, Level: 3})
 	if err != nil {
 		log.Error("couldn't insert owner permission", "err", err.Error(), "teamID", id, "userID", claims.Subject)
 	}
@@ -112,8 +110,7 @@ func checkPermissionByEmail(email string, teamid int) int {
 func checkPermissionByID(teamid int, userid string) int {
 	ctx := context.Background()
 
-	query := UseQueries()
-	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(teamid), Userid: userid})
+	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(teamid), Userid: userid})
 	if err != nil {
 		log.Error("couldn't retrieve team permission", "team", teamid, "user", userid, "err", err.Error())
 		return 0
@@ -206,12 +203,11 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 
 	// otherwise upsert teampermission
 	// TODO handle errors
-	query := UseQueries()
 	if proposedPermission != -4 {
-		_, err = query.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int64(teamId), Level: int64(proposedPermission)})
+		_, err = queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int64(teamId), Level: int64(proposedPermission)})
 
 	} else {
-		_, err = query.DeleteTeamPermission(ctx, userID)
+		_, err = queries.DeleteTeamPermission(ctx, userID)
 	}
 	if err != nil {
 		log.Error("couldn't edit team permission", "userid", userID, "team", teamId, "level", proposedPermission, "error", err.Error())
@@ -230,7 +226,6 @@ func GetTeamForUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	queries := UseQueries()
 	Teams, err := queries.FindUserTeams(ctx, claims.Subject)
 	if err != nil {
 		log.Error("couldn't get user's teams", "user", claims.Subject, "err", err.Error())
@@ -277,9 +272,8 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := UseQueries()
 	// check if team exists
-	name, err := query.GetTeamName(ctx, int64(teamId))
+	name, err := queries.GetTeamName(ctx, int64(teamId))
 	if err != nil {
 		fmt.Fprintf(w, `{ "response": "team DNE" }`)
 		return
@@ -305,7 +299,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 		levelStr = "Undefined"
 	}
 
-	memberdto, err := query.GetTeamMembership(ctx, int64(teamId))
+	memberdto, err := queries.GetTeamMembership(ctx, int64(teamId))
 	if err != nil {
 
 		fmt.Fprintf(w, `{ "response": "db error" }`)

@@ -42,6 +42,7 @@ func getConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 var db_pool sql.DB
+var queries sqlcgen.Queries
 
 func InitDB() *sql.DB {
 	dburl := os.Getenv("TURSO_DATABASE_URL") + "?authToken=" + os.Getenv("TURSO_AUTH_TOKEN")
@@ -73,14 +74,6 @@ func UseQueries() *sqlcgen.Queries {
 	return queries
 }
 
-func useTxQueries() (*sql.Tx, *sqlcgen.Queries) {
-	//ctx := context.Background()
-	tx, _ := db_pool.Begin()
-
-	qtx := sqlcgen.New(&db_pool).WithTx(tx)
-	return tx, qtx
-}
-
 func getUserIDByEmail(email string) string {
 	ctx := context.Background()
 	param := user.ListParams{EmailAddresses: []string{email}}
@@ -105,11 +98,10 @@ func getUserIDByEmail(email string) string {
 // doesn't check permission for specific projects/teams
 func canUserUpload(userId string) bool {
 	ctx := context.Background()
-	query := UseQueries()
 
 	// check team permission
 	// TODO: ensure that a team has at least one project for this to be a valid check
-	teampermissions, err := query.FindTeamPermissions(ctx, userId)
+	teampermissions, err := queries.FindTeamPermissions(ctx, userId)
 	if err != nil {
 		return false
 	}
@@ -120,7 +112,7 @@ func canUserUpload(userId string) bool {
 	}
 
 	// check permission groups
-	groups, err := query.FindUserInPermissionGroup(ctx, userId)
+	groups, err := queries.FindUserInPermissionGroup(ctx, userId)
 	if err != nil {
 		return false
 	}

@@ -22,6 +22,7 @@ func main() {
 	clerk.SetKey(os.Getenv("CLERK_SECRETKEY"))
 
 	db_pool = *InitDB()
+	queries = *UseQueries()
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{

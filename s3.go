@@ -104,8 +104,6 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	queries := UseQueries()
-
 	s3, err := generateS3Client()
 	if err != nil {
 		log.Error("couldn't connect to s3", "err", err.Error())
@@ -228,7 +226,6 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := UseQueries()
 	s3, err := generateS3Client()
 	if err != nil {
 		log.Error("couldn't connect to s3", "s3", err.Error())
@@ -237,7 +234,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get filehash from filepath+projectid
-	filehash, err := query.GetFileHash(ctx,
+	filehash, err := queries.GetFileHash(ctx,
 		sqlcgen.GetFileHashParams{
 			Projectid: int64(request.ProjectId),
 			Path:      request.Path,
@@ -250,7 +247,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ping s3 for a presigned url
-	chunksDto, err := query.GetFileChunks(ctx, filehash)
+	chunksDto, err := queries.GetFileChunks(ctx, filehash)
 	if err != nil {
 		log.Error("coudln't get file chunks", "filehash", filehash, "db err", err.Error())
 		PrintError(w, "db error")

@@ -67,8 +67,6 @@ func GetProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	}
 	user := claims.Subject
 
-	queries := UseQueries()
-
 	// get user's projects
 	teams, err := queries.FindUserTeams(ctx, user)
 	if err != nil {
@@ -114,8 +112,6 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := UseQueries()
-
 	var request ProjectCreationRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
@@ -124,7 +120,7 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check permission level in team
-	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(request.TeamID), Userid: claims.Subject})
+	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int64(request.TeamID), Userid: claims.Subject})
 	if err != nil {
 		PrintError(w, "db error")
 		return
@@ -135,12 +131,12 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pid, err := query.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int64(request.TeamID), Title: request.Name})
+	pid, err := queries.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int64(request.TeamID), Title: request.Name})
 	if err != nil {
 		PrintError(w, "db error")
 		return
 	}
-	_, err = query.InsertCommit(ctx, sqlcgen.InsertCommitParams{Projectid: pid, Userid: claims.Subject, Comment: "Initial commit", Numfiles: 0})
+	_, err = queries.InsertCommit(ctx, sqlcgen.InsertCommitParams{Projectid: pid, Userid: claims.Subject, Comment: "Initial commit", Numfiles: 0})
 	if err != nil {
 		PrintError(w, "db error")
 		return
@@ -167,25 +163,24 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := UseQueries()
-	projectname, err := query.GetProjectInfo(ctx, int64(pid))
+	projectname, err := queries.GetProjectInfo(ctx, int64(pid))
 	if err != nil {
 		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 		return
 	}
-	team, err := query.GetTeamFromProject(ctx, int64(pid))
-	if err != nil {
-		log.Error("db error", "err", err.Error())
-		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
-		return
-	}
-	teamName, err := query.GetTeamName(ctx, team)
+	team, err := queries.GetTeamFromProject(ctx, int64(pid))
 	if err != nil {
 		log.Error("db error", "err", err.Error())
 		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 		return
 	}
-	cid, err := query.FindProjectInitCommit(ctx, int64(pid))
+	teamName, err := queries.GetTeamName(ctx, team)
+	if err != nil {
+		log.Error("db error", "err", err.Error())
+		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
+		return
+	}
+	cid, err := queries.FindProjectInitCommit(ctx, int64(pid))
 	if err != nil {
 		log.Error("db error", "err", err.Error())
 		if err.Error() == "sql: no rows in result set" {
@@ -197,7 +192,7 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	permission, err := query.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: claims.Subject})
+	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: claims.Subject})
 	if err != nil {
 		log.Error("db error", "err", err.Error())
 		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
@@ -230,8 +225,6 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 // 4 (owner): can set managers
 func getProjectPermissionByID(userId string, projectId int) int {
 	ctx := context.Background()
-
-	queries := UseQueries()
 
 	teamId, err := queries.GetTeamByProject(ctx, int64(projectId))
 	if err != nil {
@@ -284,9 +277,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get project state
-	query := UseQueries()
-
-	output, err := query.GetProjectState(ctx, int64(projectId))
+	output, err := queries.GetProjectState(ctx, int64(projectId))
 	if err != nil {
 		log.Error("db error", "project", projectId, "err", err.Error())
 		PrintError(w, "db error")

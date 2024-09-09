@@ -54,8 +54,14 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	}
 	start := time.Now()
 
-	tx, qtx := useTxQueries()
+	tx, err := db_pool.Begin()
+	if err != nil {
+		log.Error("couldn't create transaction", "error", err)
+		PrintError(w, "db error")
+		return
+	}
 	defer tx.Rollback()
+	qtx := queries.WithTx(tx)
 	// make commit, get new commitid
 	cid, err := qtx.InsertCommit(ctx, sqlcgen.InsertCommitParams{
 		Projectid: int64(request.ProjectId),
@@ -63,7 +69,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		Comment:   request.Message,
 		Numfiles:  int64(len(request.Files))})
 	if err != nil {
-		log.Error("db couldn't create commit", "db err", err.Error())
+		log.Error("db couldn't create commit", "db err", err)
 		PrintError(w, "db error")
 		return
 	}
@@ -183,17 +189,15 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := UseQueries()
-
 	// get commits
-	CommitDto, err := query.ListProjectCommits(ctx, sqlcgen.ListProjectCommitsParams{Projectid: int64(pid), Offset: int64(offset)})
+	CommitDto, err := queries.ListProjectCommits(ctx, sqlcgen.ListProjectCommitsParams{Projectid: int64(pid), Offset: int64(offset)})
 	if err != nil {
 		log.Error("db error", "sql", err.Error())
 		PrintError(w, "db error")
 		return
 	}
 	// get total number
-	NumCommits, err := query.CountProjectCommits(ctx, int64(pid))
+	NumCommits, err := queries.CountProjectCommits(ctx, int64(pid))
 	if err != nil {
 		log.Error("db error", "sql", err.Error())
 		PrintError(w, "db error")
