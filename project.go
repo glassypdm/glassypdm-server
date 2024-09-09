@@ -95,9 +95,12 @@ func GetProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	managedJson, _ := json.Marshal(managed)
 	fmt.Fprintf(w, `
 	{
-		"user_id": "%s",
-		"projects": %s,
-		"managed_teams": %s
+		"response": "success",
+		"body": {
+			"user_id": "%s",
+			"projects": %s,
+			"managed_teams": %s
+		}
 	}
 	`, user, string(projectsJson), string(managedJson))
 }
@@ -208,11 +211,14 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(w, `
 	{
-		"title": "%s",
-		"teamId": %v,
-		"teamName": "%s",
-		"initCommit": %v,
-		"canManage": %v
+		"response": "success",
+		"body": {
+			"title": "%s",
+			"teamId": %v,
+			"teamName": "%s",
+			"initCommit": %v,
+			"canManage": %v
+		}
 	}
 	`, projectname, team, teamName, cid, CanManage)
 }
