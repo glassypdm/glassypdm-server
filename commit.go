@@ -107,7 +107,9 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 				hashesMissing = append(hashesMissing, request.Files[i+1].Hash)
 				continue
 			} else {
-				log.Error("unhandled error inserting file revision", "db", err)
+				log.Error("now-handled error inserting file revision", "db", err)
+				PrintError(w, "db error")
+				return
 			}
 		}
 	}
