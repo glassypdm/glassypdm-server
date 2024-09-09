@@ -5,82 +5,82 @@
 package sqlcgen
 
 import (
-	"database/sql"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Block struct {
 	Blockhash string `json:"blockhash"`
 	S3key     string `json:"s3key"`
-	Blocksize int64  `json:"blocksize"`
+	Blocksize int32  `json:"blocksize"`
 }
 
 type Chunk struct {
-	Chunkindex int64  `json:"chunkindex"`
-	Numchunks  int64  `json:"numchunks"`
+	Chunkindex int32  `json:"chunkindex"`
+	Numchunks  int32  `json:"numchunks"`
 	Filehash   string `json:"filehash"`
 	Blockhash  string `json:"blockhash"`
-	Blocksize  int64  `json:"blocksize"`
+	Blocksize  int32  `json:"blocksize"`
 }
 
 type Commit struct {
-	Commitid  int64         `json:"commitid"`
-	Projectid int64         `json:"projectid"`
-	Userid    string        `json:"userid"`
-	Comment   string        `json:"comment"`
-	Numfiles  int64         `json:"numfiles"`
-	Cno       sql.NullInt64 `json:"cno"`
-	Timestamp int64         `json:"timestamp"`
+	Commitid  int32       `json:"commitid"`
+	Projectid int32       `json:"projectid"`
+	Userid    string      `json:"userid"`
+	Comment   string      `json:"comment"`
+	Numfiles  int32       `json:"numfiles"`
+	Cno       pgtype.Int4 `json:"cno"`
+	Timestamp int32       `json:"timestamp"`
 }
 
 type File struct {
-	Projectid   int64          `json:"projectid"`
-	Path        string         `json:"path"`
-	Locked      int64          `json:"locked"`
-	Lockownerid sql.NullString `json:"lockownerid"`
+	Projectid   int32       `json:"projectid"`
+	Path        string      `json:"path"`
+	Locked      int32       `json:"locked"`
+	Lockownerid pgtype.Text `json:"lockownerid"`
 }
 
 type Filerevision struct {
-	Frid       int64         `json:"frid"`
-	Projectid  int64         `json:"projectid"`
-	Path       string        `json:"path"`
-	Commitid   int64         `json:"commitid"`
-	Filehash   string        `json:"filehash"`
-	Changetype int64         `json:"changetype"`
-	Numchunks  int64         `json:"numchunks"`
-	Frno       sql.NullInt64 `json:"frno"`
+	Frid       int32       `json:"frid"`
+	Projectid  int32       `json:"projectid"`
+	Path       string      `json:"path"`
+	Commitid   int32       `json:"commitid"`
+	Filehash   string      `json:"filehash"`
+	Changetype int32       `json:"changetype"`
+	Numchunks  int32       `json:"numchunks"`
+	Frno       pgtype.Int4 `json:"frno"`
 }
 
 type Permissiongroup struct {
-	Pgroupid int64  `json:"pgroupid"`
-	Teamid   int64  `json:"teamid"`
+	Pgroupid int32  `json:"pgroupid"`
+	Teamid   int32  `json:"teamid"`
 	Name     string `json:"name"`
 }
 
 type Pgmapping struct {
-	Pgroupid  int64 `json:"pgroupid"`
-	Projectid int64 `json:"projectid"`
-	Level     int64 `json:"level"`
+	Pgroupid  int32 `json:"pgroupid"`
+	Projectid int32 `json:"projectid"`
+	Level     int32 `json:"level"`
 }
 
 type Pgmembership struct {
-	Pgroupid int64  `json:"pgroupid"`
+	Pgroupid int32  `json:"pgroupid"`
 	Userid   string `json:"userid"`
 }
 
 type Project struct {
-	Projectid int64  `json:"projectid"`
+	Projectid int32  `json:"projectid"`
 	Title     string `json:"title"`
-	Teamid    int64  `json:"teamid"`
+	Teamid    int32  `json:"teamid"`
 }
 
 type Team struct {
-	Teamid int64         `json:"teamid"`
-	Name   string        `json:"name"`
-	Planid sql.NullInt64 `json:"planid"`
+	Teamid int32       `json:"teamid"`
+	Name   string      `json:"name"`
+	Planid pgtype.Int4 `json:"planid"`
 }
 
 type Teampermission struct {
 	Userid string `json:"userid"`
-	Teamid int64  `json:"teamid"`
-	Level  int64  `json:"level"`
+	Teamid int32  `json:"teamid"`
+	Level  int32  `json:"level"`
 }

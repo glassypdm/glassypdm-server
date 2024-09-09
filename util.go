@@ -10,8 +10,8 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2/user"
+	_ "github.com/jackc/pgx/v5"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
 )
 
 func IsServerOpen() bool {

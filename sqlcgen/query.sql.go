@@ -7,141 +7,139 @@ package sqlcgen
 
 import (
 	"context"
-	"database/sql"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addMemberToPermissionGroup = `-- name: AddMemberToPermissionGroup :exec
-INSERT INTO pgmembership(pgroupid, userid) VALUES(?, ?)
+INSERT INTO pgmembership(pgroupid, userid) VALUES($1, $2)
 `
 
 type AddMemberToPermissionGroupParams struct {
-	Pgroupid int64  `json:"pgroupid"`
+	Pgroupid int32  `json:"pgroupid"`
 	Userid   string `json:"userid"`
 }
 
 func (q *Queries) AddMemberToPermissionGroup(ctx context.Context, arg AddMemberToPermissionGroupParams) error {
-	_, err := q.db.ExecContext(ctx, addMemberToPermissionGroup, arg.Pgroupid, arg.Userid)
+	_, err := q.db.Exec(ctx, addMemberToPermissionGroup, arg.Pgroupid, arg.Userid)
 	return err
 }
 
 const checkProjectName = `-- name: CheckProjectName :one
 SELECT COUNT(*) FROM project
-WHERE teamid = ? and title=? LIMIT 1
+WHERE teamid = $1 and title=$2 LIMIT 1
 `
 
 type CheckProjectNameParams struct {
-	Teamid int64  `json:"teamid"`
+	Teamid int32  `json:"teamid"`
 	Title  string `json:"title"`
 }
 
 func (q *Queries) CheckProjectName(ctx context.Context, arg CheckProjectNameParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, checkProjectName, arg.Teamid, arg.Title)
+	row := q.db.QueryRow(ctx, checkProjectName, arg.Teamid, arg.Title)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const countProjectCommits = `-- name: CountProjectCommits :one
-SELECT COUNT(commitid) FROM 'commit'
-WHERE projectid = ?
+SELECT COUNT(commitid) FROM commit
+WHERE projectid = $1
 LIMIT 1
 `
 
-func (q *Queries) CountProjectCommits(ctx context.Context, projectid int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countProjectCommits, projectid)
+func (q *Queries) CountProjectCommits(ctx context.Context, projectid int32) (int64, error) {
+	row := q.db.QueryRow(ctx, countProjectCommits, projectid)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const createPermissionGroup = `-- name: CreatePermissionGroup :exec
-INSERT INTO permissiongroup(teamid, name) VALUES(?, ?)
+INSERT INTO permissiongroup(teamid, name) VALUES($1, $2)
 `
 
 type CreatePermissionGroupParams struct {
-	Teamid int64  `json:"teamid"`
+	Teamid int32  `json:"teamid"`
 	Name   string `json:"name"`
 }
 
 func (q *Queries) CreatePermissionGroup(ctx context.Context, arg CreatePermissionGroupParams) error {
-	_, err := q.db.ExecContext(ctx, createPermissionGroup, arg.Teamid, arg.Name)
+	_, err := q.db.Exec(ctx, createPermissionGroup, arg.Teamid, arg.Name)
 	return err
 }
 
 const deletePermissionGroup = `-- name: DeletePermissionGroup :exec
-DELETE FROM permissiongroup WHERE pgroupid = ?
+DELETE FROM permissiongroup WHERE pgroupid = $1
 `
 
-func (q *Queries) DeletePermissionGroup(ctx context.Context, pgroupid int64) error {
-	_, err := q.db.ExecContext(ctx, deletePermissionGroup, pgroupid)
+func (q *Queries) DeletePermissionGroup(ctx context.Context, pgroupid int32) error {
+	_, err := q.db.Exec(ctx, deletePermissionGroup, pgroupid)
 	return err
 }
 
 const deleteTeamPermission = `-- name: DeleteTeamPermission :one
 DELETE FROM teampermission
-WHERE userid = ?
+WHERE userid = $1
 RETURNING userid, teamid, level
 `
 
 func (q *Queries) DeleteTeamPermission(ctx context.Context, userid string) (Teampermission, error) {
-	row := q.db.QueryRowContext(ctx, deleteTeamPermission, userid)
+	row := q.db.QueryRow(ctx, deleteTeamPermission, userid)
 	var i Teampermission
 	err := row.Scan(&i.Userid, &i.Teamid, &i.Level)
 	return i, err
 }
 
 const dropPermissionGroupMapping = `-- name: DropPermissionGroupMapping :exec
-DELETE FROM pgmapping WHERE pgroupid = ?
+DELETE FROM pgmapping WHERE pgroupid = $1
 `
 
-func (q *Queries) DropPermissionGroupMapping(ctx context.Context, pgroupid int64) error {
-	_, err := q.db.ExecContext(ctx, dropPermissionGroupMapping, pgroupid)
+func (q *Queries) DropPermissionGroupMapping(ctx context.Context, pgroupid int32) error {
+	_, err := q.db.Exec(ctx, dropPermissionGroupMapping, pgroupid)
 	return err
 }
 
 const dropPermissionGroupMembership = `-- name: DropPermissionGroupMembership :exec
-DELETE FROM pgmembership WHERE pgroupid = ?
+DELETE FROM pgmembership WHERE pgroupid = $1
 `
 
-func (q *Queries) DropPermissionGroupMembership(ctx context.Context, pgroupid int64) error {
-	_, err := q.db.ExecContext(ctx, dropPermissionGroupMembership, pgroupid)
+func (q *Queries) DropPermissionGroupMembership(ctx context.Context, pgroupid int32) error {
+	_, err := q.db.Exec(ctx, dropPermissionGroupMembership, pgroupid)
 	return err
 }
 
 const findProjectInitCommit = `-- name: FindProjectInitCommit :one
-SELECT commitid FROM 'commit'
-WHERE projectid = ?
+SELECT commitid FROM commit
+WHERE projectid = $1
 ORDER BY commitid ASC LIMIT 1
 `
 
-func (q *Queries) FindProjectInitCommit(ctx context.Context, projectid int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, findProjectInitCommit, projectid)
-	var commitid int64
+func (q *Queries) FindProjectInitCommit(ctx context.Context, projectid int32) (int32, error) {
+	row := q.db.QueryRow(ctx, findProjectInitCommit, projectid)
+	var commitid int32
 	err := row.Scan(&commitid)
 	return commitid, err
 }
 
 const findTeamPermissions = `-- name: FindTeamPermissions :many
 SELECT level FROM teampermission
-WHERE userid = ?
+WHERE userid = $1
 `
 
-func (q *Queries) FindTeamPermissions(ctx context.Context, userid string) ([]int64, error) {
-	rows, err := q.db.QueryContext(ctx, findTeamPermissions, userid)
+func (q *Queries) FindTeamPermissions(ctx context.Context, userid string) ([]int32, error) {
+	rows, err := q.db.Query(ctx, findTeamPermissions, userid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []int64
+	var items []int32
 	for rows.Next() {
-		var level int64
+		var level int32
 		if err := rows.Scan(&level); err != nil {
 			return nil, err
 		}
 		items = append(items, level)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -151,17 +149,17 @@ func (q *Queries) FindTeamPermissions(ctx context.Context, userid string) ([]int
 
 const findTeamProjects = `-- name: FindTeamProjects :many
 SELECT projectid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid
-WHERE project.teamid = ?
+WHERE project.teamid = $1
 `
 
 type FindTeamProjectsRow struct {
-	Projectid int64  `json:"projectid"`
+	Projectid int32  `json:"projectid"`
 	Title     string `json:"title"`
 	Name      string `json:"name"`
 }
 
-func (q *Queries) FindTeamProjects(ctx context.Context, teamid int64) ([]FindTeamProjectsRow, error) {
-	rows, err := q.db.QueryContext(ctx, findTeamProjects, teamid)
+func (q *Queries) FindTeamProjects(ctx context.Context, teamid int32) ([]FindTeamProjectsRow, error) {
+	rows, err := q.db.Query(ctx, findTeamProjects, teamid)
 	if err != nil {
 		return nil, err
 	}
@@ -174,9 +172,6 @@ func (q *Queries) FindTeamProjects(ctx context.Context, teamid int64) ([]FindTea
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -185,25 +180,22 @@ func (q *Queries) FindTeamProjects(ctx context.Context, teamid int64) ([]FindTea
 
 const findUserInPermissionGroup = `-- name: FindUserInPermissionGroup :many
 SELECT pgroupid FROM pgmembership WHERE
-userid = ?
+userid = $1
 `
 
-func (q *Queries) FindUserInPermissionGroup(ctx context.Context, userid string) ([]int64, error) {
-	rows, err := q.db.QueryContext(ctx, findUserInPermissionGroup, userid)
+func (q *Queries) FindUserInPermissionGroup(ctx context.Context, userid string) ([]int32, error) {
+	rows, err := q.db.Query(ctx, findUserInPermissionGroup, userid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []int64
+	var items []int32
 	for rows.Next() {
-		var pgroupid int64
+		var pgroupid int32
 		if err := rows.Scan(&pgroupid); err != nil {
 			return nil, err
 		}
 		items = append(items, pgroupid)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -213,16 +205,16 @@ func (q *Queries) FindUserInPermissionGroup(ctx context.Context, userid string) 
 
 const findUserManagedTeams = `-- name: FindUserManagedTeams :many
 SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission as tp ON team.teamid = tp.teamid
-WHERE tp.userid = ? AND tp.level >= 2
+WHERE tp.userid = $1 AND tp.level >= 2
 `
 
 type FindUserManagedTeamsRow struct {
-	Teamid int64  `json:"teamid"`
+	Teamid int32  `json:"teamid"`
 	Name   string `json:"name"`
 }
 
 func (q *Queries) FindUserManagedTeams(ctx context.Context, userid string) ([]FindUserManagedTeamsRow, error) {
-	rows, err := q.db.QueryContext(ctx, findUserManagedTeams, userid)
+	rows, err := q.db.Query(ctx, findUserManagedTeams, userid)
 	if err != nil {
 		return nil, err
 	}
@@ -235,9 +227,6 @@ func (q *Queries) FindUserManagedTeams(ctx context.Context, userid string) ([]Fi
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -246,16 +235,16 @@ func (q *Queries) FindUserManagedTeams(ctx context.Context, userid string) ([]Fi
 
 const findUserTeams = `-- name: FindUserTeams :many
 SELECT DISTINCT team.teamid, name FROM team INNER JOIN teampermission AS tp ON team.teamid = tp.teamid
-WHERE tp.userid = ?
+WHERE tp.userid = $1
 `
 
 type FindUserTeamsRow struct {
-	Teamid int64  `json:"teamid"`
+	Teamid int32  `json:"teamid"`
 	Name   string `json:"name"`
 }
 
 func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]FindUserTeamsRow, error) {
-	rows, err := q.db.QueryContext(ctx, findUserTeams, userid)
+	rows, err := q.db.Query(ctx, findUserTeams, userid)
 	if err != nil {
 		return nil, err
 	}
@@ -267,9 +256,6 @@ func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]FindUserT
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -289,7 +275,7 @@ SELECT
   hehe.filehash,
   hehe.blocksize
 FROM
-  'commit' a
+  commit a
   INNER JOIN (
     SELECT
       b.filehash,
@@ -300,32 +286,32 @@ FROM
     FROM
       filerevision fr
       INNER JOIN chunk b ON fr.filehash = b.filehash
-    WHERE fr.commitid = ?
+    WHERE fr.commitid = $1
   ) hehe ON a.commitid = hehe.commitid
 WHERE
-  a.commitid = ? LIMIT 1
+  a.commitid = $2 LIMIT 1
 `
 
 type GetCommitInfoParams struct {
-	Commitid   int64 `json:"commitid"`
-	Commitid_2 int64 `json:"commitid_2"`
+	Commitid   int32 `json:"commitid"`
+	Commitid_2 int32 `json:"commitid_2"`
 }
 
 type GetCommitInfoRow struct {
-	Cno       sql.NullInt64 `json:"cno"`
-	Userid    string        `json:"userid"`
-	Timestamp int64         `json:"timestamp"`
-	Comment   string        `json:"comment"`
-	Numfiles  int64         `json:"numfiles"`
-	Path      string        `json:"path"`
-	Frno      sql.NullInt64 `json:"frno"`
-	Filehash  string        `json:"filehash"`
-	Blocksize int64         `json:"blocksize"`
+	Cno       pgtype.Int4 `json:"cno"`
+	Userid    string      `json:"userid"`
+	Timestamp int32       `json:"timestamp"`
+	Comment   string      `json:"comment"`
+	Numfiles  int32       `json:"numfiles"`
+	Path      string      `json:"path"`
+	Frno      pgtype.Int4 `json:"frno"`
+	Filehash  string      `json:"filehash"`
+	Blocksize int32       `json:"blocksize"`
 }
 
 // TODO Fix
 func (q *Queries) GetCommitInfo(ctx context.Context, arg GetCommitInfoParams) (GetCommitInfoRow, error) {
-	row := q.db.QueryRowContext(ctx, getCommitInfo, arg.Commitid, arg.Commitid_2)
+	row := q.db.QueryRow(ctx, getCommitInfo, arg.Commitid, arg.Commitid_2)
 	var i GetCommitInfoRow
 	err := row.Scan(
 		&i.Cno,
@@ -343,16 +329,16 @@ func (q *Queries) GetCommitInfo(ctx context.Context, arg GetCommitInfoParams) (G
 
 const getFileChunks = `-- name: GetFileChunks :many
 SELECT blockhash, chunkindex FROM chunk
-WHERE filehash = ?
+WHERE filehash = $1
 `
 
 type GetFileChunksRow struct {
 	Blockhash  string `json:"blockhash"`
-	Chunkindex int64  `json:"chunkindex"`
+	Chunkindex int32  `json:"chunkindex"`
 }
 
 func (q *Queries) GetFileChunks(ctx context.Context, filehash string) ([]GetFileChunksRow, error) {
-	rows, err := q.db.QueryContext(ctx, getFileChunks, filehash)
+	rows, err := q.db.Query(ctx, getFileChunks, filehash)
 	if err != nil {
 		return nil, err
 	}
@@ -365,9 +351,6 @@ func (q *Queries) GetFileChunks(ctx context.Context, filehash string) ([]GetFile
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -376,29 +359,29 @@ func (q *Queries) GetFileChunks(ctx context.Context, filehash string) ([]GetFile
 
 const getFileHash = `-- name: GetFileHash :one
 SELECT filehash FROM filerevision
-WHERE projectid = ? AND path = ? AND commitid = ? LIMIT 1
+WHERE projectid = $1 AND path = $2 AND commitid = $3 LIMIT 1
 `
 
 type GetFileHashParams struct {
-	Projectid int64  `json:"projectid"`
+	Projectid int32  `json:"projectid"`
 	Path      string `json:"path"`
-	Commitid  int64  `json:"commitid"`
+	Commitid  int32  `json:"commitid"`
 }
 
 func (q *Queries) GetFileHash(ctx context.Context, arg GetFileHashParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, getFileHash, arg.Projectid, arg.Path, arg.Commitid)
+	row := q.db.QueryRow(ctx, getFileHash, arg.Projectid, arg.Path, arg.Commitid)
 	var filehash string
 	err := row.Scan(&filehash)
 	return filehash, err
 }
 
 const getLatestCommit = `-- name: GetLatestCommit :one
-SELECT MAX(commitid) FROM 'commit'
-WHERE projectid = ? LIMIT 1
+SELECT MAX(commitid) FROM commit
+WHERE projectid = $1 LIMIT 1
 `
 
-func (q *Queries) GetLatestCommit(ctx context.Context, projectid int64) (interface{}, error) {
-	row := q.db.QueryRowContext(ctx, getLatestCommit, projectid)
+func (q *Queries) GetLatestCommit(ctx context.Context, projectid int32) (interface{}, error) {
+	row := q.db.QueryRow(ctx, getLatestCommit, projectid)
 	var max interface{}
 	err := row.Scan(&max)
 	return max, err
@@ -406,16 +389,16 @@ func (q *Queries) GetLatestCommit(ctx context.Context, projectid int64) (interfa
 
 const getPermissionGroupMapping = `-- name: GetPermissionGroupMapping :many
 SELECT p.projectid, p.title FROM pgmapping pg, project p
-WHERE pg.pgroupid = ? AND pg.projectid = p.projectid
+WHERE pg.pgroupid = $1 AND pg.projectid = p.projectid
 `
 
 type GetPermissionGroupMappingRow struct {
-	Projectid int64  `json:"projectid"`
+	Projectid int32  `json:"projectid"`
 	Title     string `json:"title"`
 }
 
-func (q *Queries) GetPermissionGroupMapping(ctx context.Context, pgroupid int64) ([]GetPermissionGroupMappingRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPermissionGroupMapping, pgroupid)
+func (q *Queries) GetPermissionGroupMapping(ctx context.Context, pgroupid int32) ([]GetPermissionGroupMappingRow, error) {
+	rows, err := q.db.Query(ctx, getPermissionGroupMapping, pgroupid)
 	if err != nil {
 		return nil, err
 	}
@@ -428,9 +411,6 @@ func (q *Queries) GetPermissionGroupMapping(ctx context.Context, pgroupid int64)
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -439,11 +419,11 @@ func (q *Queries) GetPermissionGroupMapping(ctx context.Context, pgroupid int64)
 
 const getProjectInfo = `-- name: GetProjectInfo :one
 SELECT title FROM project
-WHERE projectid = ? LIMIT 1
+WHERE projectid = $1 LIMIT 1
 `
 
-func (q *Queries) GetProjectInfo(ctx context.Context, projectid int64) (string, error) {
-	row := q.db.QueryRowContext(ctx, getProjectInfo, projectid)
+func (q *Queries) GetProjectInfo(ctx context.Context, projectid int32) (string, error) {
+	row := q.db.QueryRow(ctx, getProjectInfo, projectid)
 	var title string
 	err := row.Scan(&title)
 	return title, err
@@ -453,16 +433,16 @@ const getProjectLivingFiles = `-- name: GetProjectLivingFiles :many
 SELECT a.frid, a.path FROM filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
-WHERE a.projectid = ? and changetype != 3
+WHERE a.projectid = $1 and changetype != 3
 `
 
 type GetProjectLivingFilesRow struct {
-	Frid int64  `json:"frid"`
+	Frid int32  `json:"frid"`
 	Path string `json:"path"`
 }
 
-func (q *Queries) GetProjectLivingFiles(ctx context.Context, projectid int64) ([]GetProjectLivingFilesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getProjectLivingFiles, projectid)
+func (q *Queries) GetProjectLivingFiles(ctx context.Context, projectid int32) ([]GetProjectLivingFilesRow, error) {
+	rows, err := q.db.Query(ctx, getProjectLivingFiles, projectid)
 	if err != nil {
 		return nil, err
 	}
@@ -475,9 +455,6 @@ func (q *Queries) GetProjectLivingFiles(ctx context.Context, projectid int64) ([
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -488,20 +465,20 @@ const getProjectState = `-- name: GetProjectState :many
 SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, chunk.blocksize FROM chunk, filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
-WHERE a.projectid = ? AND a.filehash = chunk.filehash
+WHERE a.projectid = $1 AND a.filehash = chunk.filehash
 `
 
 type GetProjectStateRow struct {
-	Frid       int64  `json:"frid"`
+	Frid       int32  `json:"frid"`
 	Path       string `json:"path"`
-	Commitid   int64  `json:"commitid"`
+	Commitid   int32  `json:"commitid"`
 	Filehash   string `json:"filehash"`
-	Changetype int64  `json:"changetype"`
-	Blocksize  int64  `json:"blocksize"`
+	Changetype int32  `json:"changetype"`
+	Blocksize  int32  `json:"blocksize"`
 }
 
-func (q *Queries) GetProjectState(ctx context.Context, projectid int64) ([]GetProjectStateRow, error) {
-	rows, err := q.db.QueryContext(ctx, getProjectState, projectid)
+func (q *Queries) GetProjectState(ctx context.Context, projectid int32) ([]GetProjectStateRow, error) {
+	rows, err := q.db.Query(ctx, getProjectState, projectid)
 	if err != nil {
 		return nil, err
 	}
@@ -521,9 +498,6 @@ func (q *Queries) GetProjectState(ctx context.Context, projectid int64) ([]GetPr
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -532,11 +506,11 @@ func (q *Queries) GetProjectState(ctx context.Context, projectid int64) ([]GetPr
 
 const getS3Key = `-- name: GetS3Key :one
 SELECT s3key FROM block
-WHERE blockhash = ? LIMIT 1
+WHERE blockhash = $1 LIMIT 1
 `
 
 func (q *Queries) GetS3Key(ctx context.Context, blockhash string) (string, error) {
-	row := q.db.QueryRowContext(ctx, getS3Key, blockhash)
+	row := q.db.QueryRow(ctx, getS3Key, blockhash)
 	var s3key string
 	err := row.Scan(&s3key)
 	return s3key, err
@@ -544,52 +518,52 @@ func (q *Queries) GetS3Key(ctx context.Context, blockhash string) (string, error
 
 const getTeamByProject = `-- name: GetTeamByProject :one
 SELECT teamid FROM project
-WHERE projectid = ? LIMIT 1
+WHERE projectid = $1 LIMIT 1
 `
 
-func (q *Queries) GetTeamByProject(ctx context.Context, projectid int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getTeamByProject, projectid)
-	var teamid int64
+func (q *Queries) GetTeamByProject(ctx context.Context, projectid int32) (int32, error) {
+	row := q.db.QueryRow(ctx, getTeamByProject, projectid)
+	var teamid int32
 	err := row.Scan(&teamid)
 	return teamid, err
 }
 
 const getTeamFromPGroup = `-- name: GetTeamFromPGroup :one
 SELECT teamid FROM permissiongroup WHERE
-pgroupid = ? LIMIT 1
+pgroupid = $1 LIMIT 1
 `
 
-func (q *Queries) GetTeamFromPGroup(ctx context.Context, pgroupid int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getTeamFromPGroup, pgroupid)
-	var teamid int64
+func (q *Queries) GetTeamFromPGroup(ctx context.Context, pgroupid int32) (int32, error) {
+	row := q.db.QueryRow(ctx, getTeamFromPGroup, pgroupid)
+	var teamid int32
 	err := row.Scan(&teamid)
 	return teamid, err
 }
 
 const getTeamFromProject = `-- name: GetTeamFromProject :one
 SELECT teamid FROM project
-WHERE projectid = ? LIMIT 1
+WHERE projectid = $1 LIMIT 1
 `
 
-func (q *Queries) GetTeamFromProject(ctx context.Context, projectid int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getTeamFromProject, projectid)
-	var teamid int64
+func (q *Queries) GetTeamFromProject(ctx context.Context, projectid int32) (int32, error) {
+	row := q.db.QueryRow(ctx, getTeamFromProject, projectid)
+	var teamid int32
 	err := row.Scan(&teamid)
 	return teamid, err
 }
 
 const getTeamMembership = `-- name: GetTeamMembership :many
 SELECT userid, level FROM teampermission
-WHERE teamid = ?
+WHERE teamid = $1
 `
 
 type GetTeamMembershipRow struct {
 	Userid string `json:"userid"`
-	Level  int64  `json:"level"`
+	Level  int32  `json:"level"`
 }
 
-func (q *Queries) GetTeamMembership(ctx context.Context, teamid int64) ([]GetTeamMembershipRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTeamMembership, teamid)
+func (q *Queries) GetTeamMembership(ctx context.Context, teamid int32) ([]GetTeamMembershipRow, error) {
+	rows, err := q.db.Query(ctx, getTeamMembership, teamid)
 	if err != nil {
 		return nil, err
 	}
@@ -602,9 +576,6 @@ func (q *Queries) GetTeamMembership(ctx context.Context, teamid int64) ([]GetTea
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -613,11 +584,11 @@ func (q *Queries) GetTeamMembership(ctx context.Context, teamid int64) ([]GetTea
 
 const getTeamName = `-- name: GetTeamName :one
 SELECT name FROM team
-WHERE teamid = ? LIMIT 1
+WHERE teamid = $1 LIMIT 1
 `
 
-func (q *Queries) GetTeamName(ctx context.Context, teamid int64) (string, error) {
-	row := q.db.QueryRowContext(ctx, getTeamName, teamid)
+func (q *Queries) GetTeamName(ctx context.Context, teamid int32) (string, error) {
+	row := q.db.QueryRow(ctx, getTeamName, teamid)
 	var name string
 	err := row.Scan(&name)
 	return name, err
@@ -625,29 +596,29 @@ func (q *Queries) GetTeamName(ctx context.Context, teamid int64) (string, error)
 
 const getTeamPermission = `-- name: GetTeamPermission :one
 SELECT level FROM teampermission
-WHERE teamid = ? AND userid = ?
+WHERE teamid = $1 AND userid = $2
 LIMIT 1
 `
 
 type GetTeamPermissionParams struct {
-	Teamid int64  `json:"teamid"`
+	Teamid int32  `json:"teamid"`
 	Userid string `json:"userid"`
 }
 
-func (q *Queries) GetTeamPermission(ctx context.Context, arg GetTeamPermissionParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getTeamPermission, arg.Teamid, arg.Userid)
-	var level int64
+func (q *Queries) GetTeamPermission(ctx context.Context, arg GetTeamPermissionParams) (int32, error) {
+	row := q.db.QueryRow(ctx, getTeamPermission, arg.Teamid, arg.Userid)
+	var level int32
 	err := row.Scan(&level)
 	return level, err
 }
 
 const getUploadPermission = `-- name: GetUploadPermission :one
 SELECT COUNT(*) FROM teampermission
-WHERE userid = ? LIMIT 1
+WHERE userid = $1 LIMIT 1
 `
 
 func (q *Queries) GetUploadPermission(ctx context.Context, userid string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getUploadPermission, userid)
+	row := q.db.QueryRow(ctx, getUploadPermission, userid)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -655,19 +626,19 @@ func (q *Queries) GetUploadPermission(ctx context.Context, userid string) (int64
 
 const insertChunk = `-- name: InsertChunk :exec
 INSERT INTO chunk(chunkindex, numchunks, filehash, blockhash, blocksize)
-VALUES (?, ?, ?, ?, ?)
+VALUES ($1, $2, $3, $4, $5)
 `
 
 type InsertChunkParams struct {
-	Chunkindex int64  `json:"chunkindex"`
-	Numchunks  int64  `json:"numchunks"`
+	Chunkindex int32  `json:"chunkindex"`
+	Numchunks  int32  `json:"numchunks"`
 	Filehash   string `json:"filehash"`
 	Blockhash  string `json:"blockhash"`
-	Blocksize  int64  `json:"blocksize"`
+	Blocksize  int32  `json:"blocksize"`
 }
 
 func (q *Queries) InsertChunk(ctx context.Context, arg InsertChunkParams) error {
-	_, err := q.db.ExecContext(ctx, insertChunk,
+	_, err := q.db.Exec(ctx, insertChunk,
 		arg.Chunkindex,
 		arg.Numchunks,
 		arg.Filehash,
@@ -678,61 +649,61 @@ func (q *Queries) InsertChunk(ctx context.Context, arg InsertChunkParams) error 
 }
 
 const insertCommit = `-- name: InsertCommit :one
-INSERT INTO 'commit'(projectid, userid, comment, numfiles)
-VALUES (?, ?, ?, ?)
+INSERT INTO commit(projectid, userid, comment, numfiles)
+VALUES ($1, $2, $3, $4)
 RETURNING commitid
 `
 
 type InsertCommitParams struct {
-	Projectid int64  `json:"projectid"`
+	Projectid int32  `json:"projectid"`
 	Userid    string `json:"userid"`
 	Comment   string `json:"comment"`
-	Numfiles  int64  `json:"numfiles"`
+	Numfiles  int32  `json:"numfiles"`
 }
 
-func (q *Queries) InsertCommit(ctx context.Context, arg InsertCommitParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, insertCommit,
+func (q *Queries) InsertCommit(ctx context.Context, arg InsertCommitParams) (int32, error) {
+	row := q.db.QueryRow(ctx, insertCommit,
 		arg.Projectid,
 		arg.Userid,
 		arg.Comment,
 		arg.Numfiles,
 	)
-	var commitid int64
+	var commitid int32
 	err := row.Scan(&commitid)
 	return commitid, err
 }
 
 const insertFile = `-- name: InsertFile :exec
 INSERT INTO file(projectid, path)
-VALUES (?, ?)
+VALUES ($1, $2)
 `
 
 type InsertFileParams struct {
-	Projectid int64  `json:"projectid"`
+	Projectid int32  `json:"projectid"`
 	Path      string `json:"path"`
 }
 
 func (q *Queries) InsertFile(ctx context.Context, arg InsertFileParams) error {
-	_, err := q.db.ExecContext(ctx, insertFile, arg.Projectid, arg.Path)
+	_, err := q.db.Exec(ctx, insertFile, arg.Projectid, arg.Path)
 	return err
 }
 
 const insertFileRevision = `-- name: InsertFileRevision :exec
 INSERT INTO filerevision(projectid, path, commitid, filehash, numchunks, changetype)
-VALUES (?, ?, ?, ?, ?, ?)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type InsertFileRevisionParams struct {
-	Projectid  int64  `json:"projectid"`
+	Projectid  int32  `json:"projectid"`
 	Path       string `json:"path"`
-	Commitid   int64  `json:"commitid"`
+	Commitid   int32  `json:"commitid"`
 	Filehash   string `json:"filehash"`
-	Numchunks  int64  `json:"numchunks"`
-	Changetype int64  `json:"changetype"`
+	Numchunks  int32  `json:"numchunks"`
+	Changetype int32  `json:"changetype"`
 }
 
 func (q *Queries) InsertFileRevision(ctx context.Context, arg InsertFileRevisionParams) error {
-	_, err := q.db.ExecContext(ctx, insertFileRevision,
+	_, err := q.db.Exec(ctx, insertFileRevision,
 		arg.Projectid,
 		arg.Path,
 		arg.Commitid,
@@ -745,73 +716,73 @@ func (q *Queries) InsertFileRevision(ctx context.Context, arg InsertFileRevision
 
 const insertHash = `-- name: InsertHash :exec
 INSERT INTO block(blockhash, s3key, blocksize)
-VALUES (?, ?, ?)
+VALUES ($1, $2, $3)
 `
 
 type InsertHashParams struct {
 	Blockhash string `json:"blockhash"`
 	S3key     string `json:"s3key"`
-	Blocksize int64  `json:"blocksize"`
+	Blocksize int32  `json:"blocksize"`
 }
 
 func (q *Queries) InsertHash(ctx context.Context, arg InsertHashParams) error {
-	_, err := q.db.ExecContext(ctx, insertHash, arg.Blockhash, arg.S3key, arg.Blocksize)
+	_, err := q.db.Exec(ctx, insertHash, arg.Blockhash, arg.S3key, arg.Blocksize)
 	return err
 }
 
 const insertProject = `-- name: InsertProject :one
 INSERT INTO project(title, teamid)
-VALUES (?, ?)
+VALUES ($1, $2)
 RETURNING projectid
 `
 
 type InsertProjectParams struct {
 	Title  string `json:"title"`
-	Teamid int64  `json:"teamid"`
+	Teamid int32  `json:"teamid"`
 }
 
-func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, insertProject, arg.Title, arg.Teamid)
-	var projectid int64
+func (q *Queries) InsertProject(ctx context.Context, arg InsertProjectParams) (int32, error) {
+	row := q.db.QueryRow(ctx, insertProject, arg.Title, arg.Teamid)
+	var projectid int32
 	err := row.Scan(&projectid)
 	return projectid, err
 }
 
 const insertTeam = `-- name: InsertTeam :one
 INSERT INTO team(name)
-VALUES (?)
+VALUES ($1)
 RETURNING teamid
 `
 
-func (q *Queries) InsertTeam(ctx context.Context, name string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, insertTeam, name)
-	var teamid int64
+func (q *Queries) InsertTeam(ctx context.Context, name string) (int32, error) {
+	row := q.db.QueryRow(ctx, insertTeam, name)
+	var teamid int32
 	err := row.Scan(&teamid)
 	return teamid, err
 }
 
 const insertTwoFileRevisions = `-- name: InsertTwoFileRevisions :exec
 INSERT INTO filerevision(projectid, path, commitid, filehash, numchunks, changetype)
-VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)
+VALUES ($1, $2, $3, $4, $5, $6), ($7, $8, $9, $10, $11, $12)
 `
 
 type InsertTwoFileRevisionsParams struct {
-	Projectid    int64  `json:"projectid"`
+	Projectid    int32  `json:"projectid"`
 	Path         string `json:"path"`
-	Commitid     int64  `json:"commitid"`
+	Commitid     int32  `json:"commitid"`
 	Filehash     string `json:"filehash"`
-	Numchunks    int64  `json:"numchunks"`
-	Changetype   int64  `json:"changetype"`
-	Projectid_2  int64  `json:"projectid_2"`
+	Numchunks    int32  `json:"numchunks"`
+	Changetype   int32  `json:"changetype"`
+	Projectid_2  int32  `json:"projectid_2"`
 	Path_2       string `json:"path_2"`
-	Commitid_2   int64  `json:"commitid_2"`
+	Commitid_2   int32  `json:"commitid_2"`
 	Filehash_2   string `json:"filehash_2"`
-	Numchunks_2  int64  `json:"numchunks_2"`
-	Changetype_2 int64  `json:"changetype_2"`
+	Numchunks_2  int32  `json:"numchunks_2"`
+	Changetype_2 int32  `json:"changetype_2"`
 }
 
 func (q *Queries) InsertTwoFileRevisions(ctx context.Context, arg InsertTwoFileRevisionsParams) error {
-	_, err := q.db.ExecContext(ctx, insertTwoFileRevisions,
+	_, err := q.db.Exec(ctx, insertTwoFileRevisions,
 		arg.Projectid,
 		arg.Path,
 		arg.Commitid,
@@ -830,16 +801,16 @@ func (q *Queries) InsertTwoFileRevisions(ctx context.Context, arg InsertTwoFileR
 
 const isUserInPermissionGroup = `-- name: IsUserInPermissionGroup :one
 SELECT userid FROM pgmembership pgme, pgmapping pgma WHERE
-pgme.userid = ? AND pgma.projectid = ? AND pgma.pgroupid = pgme.pgroupid
+pgme.userid = $1 AND pgma.projectid = $2 AND pgma.pgroupid = pgme.pgroupid
 `
 
 type IsUserInPermissionGroupParams struct {
 	Userid    string `json:"userid"`
-	Projectid int64  `json:"projectid"`
+	Projectid int32  `json:"projectid"`
 }
 
 func (q *Queries) IsUserInPermissionGroup(ctx context.Context, arg IsUserInPermissionGroupParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, isUserInPermissionGroup, arg.Userid, arg.Projectid)
+	row := q.db.QueryRow(ctx, isUserInPermissionGroup, arg.Userid, arg.Projectid)
 	var userid string
 	err := row.Scan(&userid)
 	return userid, err
@@ -848,17 +819,17 @@ func (q *Queries) IsUserInPermissionGroup(ctx context.Context, arg IsUserInPermi
 const listPermissionGroupForTeam = `-- name: ListPermissionGroupForTeam :many
 SELECT pg.pgroupid, pg.name, count(pgm.userid) as count
 FROM permissiongroup pg LEFT JOIN pgmembership pgm ON pg.pgroupid = pgm.pgroupid
-WHERE pg.teamid = ? GROUP BY pg.pgroupid
+WHERE pg.teamid = $1 GROUP BY pg.pgroupid
 `
 
 type ListPermissionGroupForTeamRow struct {
-	Pgroupid int64  `json:"pgroupid"`
+	Pgroupid int32  `json:"pgroupid"`
 	Name     string `json:"name"`
 	Count    int64  `json:"count"`
 }
 
-func (q *Queries) ListPermissionGroupForTeam(ctx context.Context, teamid int64) ([]ListPermissionGroupForTeamRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPermissionGroupForTeam, teamid)
+func (q *Queries) ListPermissionGroupForTeam(ctx context.Context, teamid int32) ([]ListPermissionGroupForTeamRow, error) {
+	rows, err := q.db.Query(ctx, listPermissionGroupForTeam, teamid)
 	if err != nil {
 		return nil, err
 	}
@@ -871,9 +842,6 @@ func (q *Queries) ListPermissionGroupForTeam(ctx context.Context, teamid int64) 
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -881,11 +849,11 @@ func (q *Queries) ListPermissionGroupForTeam(ctx context.Context, teamid int64) 
 }
 
 const listPermissionGroupMembership = `-- name: ListPermissionGroupMembership :many
-SELECT userid FROM pgmembership WHERE pgroupid = ?
+SELECT userid FROM pgmembership WHERE pgroupid = $1
 `
 
-func (q *Queries) ListPermissionGroupMembership(ctx context.Context, pgroupid int64) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, listPermissionGroupMembership, pgroupid)
+func (q *Queries) ListPermissionGroupMembership(ctx context.Context, pgroupid int32) ([]string, error) {
+	rows, err := q.db.Query(ctx, listPermissionGroupMembership, pgroupid)
 	if err != nil {
 		return nil, err
 	}
@@ -898,9 +866,6 @@ func (q *Queries) ListPermissionGroupMembership(ctx context.Context, pgroupid in
 		}
 		items = append(items, userid)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -908,28 +873,28 @@ func (q *Queries) ListPermissionGroupMembership(ctx context.Context, pgroupid in
 }
 
 const listProjectCommits = `-- name: ListProjectCommits :many
-SELECT cno, numfiles, userid, comment, commitid, timestamp FROM 'commit'
-WHERE projectid = ?
+SELECT cno, numfiles, userid, comment, commitid, timestamp FROM commit
+WHERE projectid = $1
 ORDER BY commitid DESC
-LIMIT 5 OFFSET ?
+LIMIT 5 OFFSET $2
 `
 
 type ListProjectCommitsParams struct {
-	Projectid int64 `json:"projectid"`
-	Offset    int64 `json:"offset"`
+	Projectid int32 `json:"projectid"`
+	Offset    int32 `json:"offset"`
 }
 
 type ListProjectCommitsRow struct {
-	Cno       sql.NullInt64 `json:"cno"`
-	Numfiles  int64         `json:"numfiles"`
-	Userid    string        `json:"userid"`
-	Comment   string        `json:"comment"`
-	Commitid  int64         `json:"commitid"`
-	Timestamp int64         `json:"timestamp"`
+	Cno       pgtype.Int4 `json:"cno"`
+	Numfiles  int32       `json:"numfiles"`
+	Userid    string      `json:"userid"`
+	Comment   string      `json:"comment"`
+	Commitid  int32       `json:"commitid"`
+	Timestamp int32       `json:"timestamp"`
 }
 
 func (q *Queries) ListProjectCommits(ctx context.Context, arg ListProjectCommitsParams) ([]ListProjectCommitsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listProjectCommits, arg.Projectid, arg.Offset)
+	rows, err := q.db.Query(ctx, listProjectCommits, arg.Projectid, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -949,9 +914,6 @@ func (q *Queries) ListProjectCommits(ctx context.Context, arg ListProjectCommits
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -959,70 +921,70 @@ func (q *Queries) ListProjectCommits(ctx context.Context, arg ListProjectCommits
 }
 
 const mapProjectToPermissionGroup = `-- name: MapProjectToPermissionGroup :exec
-INSERT INTO pgmapping(pgroupid, projectid) VALUES(?, ?)
+INSERT INTO pgmapping(pgroupid, projectid) VALUES($1, $2)
 `
 
 type MapProjectToPermissionGroupParams struct {
-	Pgroupid  int64 `json:"pgroupid"`
-	Projectid int64 `json:"projectid"`
+	Pgroupid  int32 `json:"pgroupid"`
+	Projectid int32 `json:"projectid"`
 }
 
 func (q *Queries) MapProjectToPermissionGroup(ctx context.Context, arg MapProjectToPermissionGroupParams) error {
-	_, err := q.db.ExecContext(ctx, mapProjectToPermissionGroup, arg.Pgroupid, arg.Projectid)
+	_, err := q.db.Exec(ctx, mapProjectToPermissionGroup, arg.Pgroupid, arg.Projectid)
 	return err
 }
 
 const removeHash = `-- name: RemoveHash :exec
-DELETE FROM block WHERE blockhash = ?
+DELETE FROM block WHERE blockhash = $1
 `
 
 func (q *Queries) RemoveHash(ctx context.Context, blockhash string) error {
-	_, err := q.db.ExecContext(ctx, removeHash, blockhash)
+	_, err := q.db.Exec(ctx, removeHash, blockhash)
 	return err
 }
 
 const removeMemberFromPermissionGroup = `-- name: RemoveMemberFromPermissionGroup :exec
-DELETE FROM pgmembership WHERE pgroupid = ? AND userid = ?
+DELETE FROM pgmembership WHERE pgroupid = $1 AND userid = $2
 `
 
 type RemoveMemberFromPermissionGroupParams struct {
-	Pgroupid int64  `json:"pgroupid"`
+	Pgroupid int32  `json:"pgroupid"`
 	Userid   string `json:"userid"`
 }
 
 func (q *Queries) RemoveMemberFromPermissionGroup(ctx context.Context, arg RemoveMemberFromPermissionGroupParams) error {
-	_, err := q.db.ExecContext(ctx, removeMemberFromPermissionGroup, arg.Pgroupid, arg.Userid)
+	_, err := q.db.Exec(ctx, removeMemberFromPermissionGroup, arg.Pgroupid, arg.Userid)
 	return err
 }
 
 const removeProjectFromPermissionGroup = `-- name: RemoveProjectFromPermissionGroup :exec
-DELETE FROM pgmapping WHERE pgroupid = ? AND projectid = ?
+DELETE FROM pgmapping WHERE pgroupid = $1 AND projectid = $2
 `
 
 type RemoveProjectFromPermissionGroupParams struct {
-	Pgroupid  int64 `json:"pgroupid"`
-	Projectid int64 `json:"projectid"`
+	Pgroupid  int32 `json:"pgroupid"`
+	Projectid int32 `json:"projectid"`
 }
 
 func (q *Queries) RemoveProjectFromPermissionGroup(ctx context.Context, arg RemoveProjectFromPermissionGroupParams) error {
-	_, err := q.db.ExecContext(ctx, removeProjectFromPermissionGroup, arg.Pgroupid, arg.Projectid)
+	_, err := q.db.Exec(ctx, removeProjectFromPermissionGroup, arg.Pgroupid, arg.Projectid)
 	return err
 }
 
 const setTeamPermission = `-- name: SetTeamPermission :one
 INSERT INTO teampermission(userid, teamid, level)
-VALUES(?, ?, ?) ON CONFLICT(userid, teamid) DO UPDATE SET level=excluded.level
+VALUES($1, $2, $3) ON CONFLICT(userid, teamid) DO UPDATE SET level=excluded.level
 RETURNING userid, teamid, level
 `
 
 type SetTeamPermissionParams struct {
 	Userid string `json:"userid"`
-	Teamid int64  `json:"teamid"`
-	Level  int64  `json:"level"`
+	Teamid int32  `json:"teamid"`
+	Level  int32  `json:"level"`
 }
 
 func (q *Queries) SetTeamPermission(ctx context.Context, arg SetTeamPermissionParams) (Teampermission, error) {
-	row := q.db.QueryRowContext(ctx, setTeamPermission, arg.Userid, arg.Teamid, arg.Level)
+	row := q.db.QueryRow(ctx, setTeamPermission, arg.Userid, arg.Teamid, arg.Level)
 	var i Teampermission
 	err := row.Scan(&i.Userid, &i.Teamid, &i.Level)
 	return i, err

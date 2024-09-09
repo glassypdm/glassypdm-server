@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS team(
-    teamid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    teamid SERIAL PRIMARY KEY NOT NULL,
     name TEXT NOT NULL UNIQUE,
     planid INTEGER DEFAULT 0
 );
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS teampermission(
 );
 
 CREATE TABLE IF NOT EXISTS project(
-    projectid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    projectid SERIAL PRIMARY KEY NOT NULL,
     title TEXT NOT NULL,
     teamid INTEGER NOT NULL,
     FOREIGN KEY(teamid) REFERENCES team(teamid),
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS project(
 );
 
 CREATE TABLE IF NOT EXISTS permissiongroup(
-    pgroupid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    pgroupid SERIAL PRIMARY KEY NOT NULL,
     teamid INTEGER NOT NULL,
     name TEXT NOT NULL,
     FOREIGN KEY(teamid) REFERENCES team(teamid),
@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS pgmapping(
     FOREIGN KEY(projectid) REFERENCES project(projectid)
 );
 
-CREATE TABLE IF NOT EXISTS 'commit'(
-    commitid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+CREATE TABLE IF NOT EXISTS commit(
+    commitid SERIAL PRIMARY KEY NOT NULL,
     projectid INTEGER NOT NULL,
     userid TEXT NOT NULL,
     comment TEXT NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS file(
 );
 
 CREATE TABLE IF NOT EXISTS filerevision(
-    frid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    frid SERIAL PRIMARY KEY NOT NULL,
     projectid INTEGER NOT NULL,
     path TEXT NOT NULL,
     commitid INTEGER NOT NULL,
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS filerevision(
     numchunks INTEGER NOT NULL,
     frno INTEGER,
     FOREIGN KEY(projectid) REFERENCES project(projectid),
-    FOREIGN KEY(commitid) REFERENCES 'commit'(commitid)
+    FOREIGN KEY(commitid) REFERENCES commit(commitid)
 );
 
 CREATE TABLE IF NOT EXISTS chunk(
@@ -94,16 +94,49 @@ CREATE TABLE IF NOT EXISTS block(
     blocksize INTEGER NOT NULL
 );
 
-
-CREATE TRIGGER IF NOT EXISTS commitnumber AFTER INSERT ON 'commit' BEGIN
-UPDATE 'commit' SET cno = (SELECT COUNT(*) FROM 'commit' WHERE projectid = NEW.projectid) WHERE commitid = NEW.commitid;
+CREATE OR REPLACE FUNCTION update_commit_number()
+RETURNS TRIGGER
+LANGUAGE PLPGSQL
+AS
+$$
+BEGIN
+UPDATE commit SET cno = (SELECT COUNT(*) FROM commit WHERE projectid = NEW.projectid) WHERE commitid = NEW.commitid;
 END;
+$$;
 
-CREATE TRIGGER IF NOT EXISTS frnumber AFTER INSERT ON filerevision BEGIN
+CREATE OR REPLACE FUNCTION update_commit_number()
+RETURNS TRIGGER
+LANGUAGE PLPGSQL
+AS
+$$
+BEGIN
+UPDATE commit SET cno = (SELECT COUNT(*) FROM commit WHERE projectid = NEW.projectid) WHERE commitid = NEW.commitid;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION update_filerevision_number()
+RETURNS TRIGGER
+LANGUAGE PLPGSQL
+AS
+$$
+BEGIN
 UPDATE filerevision SET frno = (SELECT COUNT(*) FROM filerevision WHERE path = NEW.path AND projectid = NEW.projectid) WHERE frid = NEW.frid;
 END;
+$$;
 
-CREATE TRIGGER IF NOT EXISTS crfile AFTER INSERT ON filerevision BEGIN
+CREATE OR REPLACE FUNCTION create_file_entry()
+RETURNS TRIGGER
+LANGUAGE PLPGSQL
+AS
+$$
+BEGIN
 INSERT INTO file(projectid, path) VALUES (NEW.projectid, NEW.path)
 ON CONFLICT(projectid, path) DO NOTHING;
 END;
+$$;
+
+CREATE OR REPLACE TRIGGER commitnumber AFTER INSERT ON commit EXECUTE FUNCTION update_commit_number();
+
+CREATE OR REPLACE TRIGGER frnumber AFTER INSERT ON filerevision EXECUTE FUNCTION update_filerevision_number();
+
+CREATE OR REPLACE TRIGGER crfile AFTER INSERT ON filerevision EXECUTE FUNCTION create_file_entry();
