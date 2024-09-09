@@ -1,7 +1,7 @@
 module github.com/joshtenorio/glassypdm-server
 
-// +heroku goVersion go1.22
-go 1.22.1
+// +heroku goVersion go1.23
+go 1.23
 
 require (
 	github.com/charmbracelet/log v0.4.0
