@@ -49,6 +49,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if os.Getenv("OPEN_TEAMS") == "0" {
+		// TODO ???
 		PrintDefaultSuccess(w, "disabled")
 		return
 	}
