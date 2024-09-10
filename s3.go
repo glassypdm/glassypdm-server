@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -118,7 +120,8 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		sqlcgen.InsertHashParams{Blockhash: hashUser, S3key: hashUser, Blocksize: int32(size)})
 	if err != nil {
 		log.Error("couldn't insert hash", "db", err.Error())
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		var e *pgconn.PgError
+		if errors.As(err, &e) && e.Code == pgerrcode.UniqueViolation {
 			log.Warn("found duplicate hash", "hash", hashUser)
 
 			// insert the chunk because we need to anyways
@@ -130,7 +133,8 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 				Blocksize:  int32(size),
 			})
 			if err != nil {
-				if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				var e *pgconn.PgError
+				if errors.As(err, &e) && e.Code == pgerrcode.UniqueViolation {
 					// chunk exists already
 				} else {
 					log.Error("couldn't insert chunk", "db", err.Error())
@@ -183,9 +187,15 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		Blocksize:  int32(size),
 	})
 	if err != nil {
-		log.Error("couldn't insert chunk", "sql", err.Error())
-		PrintError(w, "db error")
-		return
+		var e *pgconn.PgError
+		if errors.As(err, &e) && e.Code == pgerrcode.UniqueViolation {
+			log.Warn("duplicate found") // TODO downgrade to ifno
+		} else {
+			log.Error("couldn't insert chunk", "sql", err.Error())
+			PrintError(w, "db error")
+			return
+		}
+
 	}
 	PrintDefaultSuccess(w, "upload successful")
 }

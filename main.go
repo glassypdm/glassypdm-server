@@ -22,14 +22,36 @@ func main() {
 	ctx := context.Background()
 	godotenv.Load()
 
-	clerk.SetKey(os.Getenv("CLERK_SECRETKEY"))
+	if os.Getenv("DEBUG") == "1" {
+		log.SetLevel(log.DebugLevel)
+	}
+	log.SetReportCaller(true)
+	log.SetReportTimestamp(true)
 
-	// TODO url
-	db_pool, err := pgxpool.New(ctx, "")
+	clerk.SetKey(os.Getenv("CLERK_SECRETKEY"))
+	PSQLUser := os.Getenv("PSQL_USERNAME")
+	PSQLPass := os.Getenv("PSQL_PASSWORD")
+	PSQLUrl := os.Getenv("PSQL_URL")
+	PSQLDatabase := os.Getenv("PSQL_DATABASE")
+	if PSQLUser == "" || PSQLPass == "" || PSQLUrl == "" || PSQLDatabase == "" {
+		log.Fatal("Missing a database environment")
+	}
+	var err error
+
+	url := "postgresql://" + PSQLUser + ":" + PSQLPass + "@" + PSQLUrl + "/" + PSQLDatabase + "?sslmode=require"
+	log.Debug("PSQL url", "url", url)
+	db_pool, err = pgxpool.New(ctx, url)
 	if err != nil {
 		log.Fatal("could not connect to db", "db error", err)
 	}
 	defer db_pool.Close()
+
+	//log.Debug("ddl", "ddl", ddl)
+	_, err = db_pool.Exec(ctx, ddl)
+	if err != nil {
+		// TODO should this be fatal or error?
+		log.Fatal("error executing ddl", "db error", err)
+	}
 
 	queries = *sqlcgen.New(db_pool)
 	r := chi.NewRouter()
@@ -80,12 +102,6 @@ func main() {
 		// removem member
 		// delete permission group
 	})
-
-	if os.Getenv("DEBUG") == "1" {
-		log.SetLevel(log.DebugLevel)
-	}
-	log.SetReportCaller(true)
-	log.SetReportTimestamp(true)
 
 	port := os.Getenv("PORT")
 	log.Info("Listening on localhost", "port", port)

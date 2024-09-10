@@ -122,25 +122,30 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	// check permission level in team
 	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int32(request.TeamID), Userid: claims.Subject})
 	if err != nil {
+		log.Error("couldn't get team permission", "team", request.TeamID, "user", claims.Subject)
 		PrintError(w, "db error")
 		return
 	}
 	level := int(permission)
 	if level < 2 {
+		log.Error("insufficient permission for creating project", "team", request.TeamID, "user", claims.Subject)
 		PrintError(w, "insufficient permission")
 		return
 	}
 
 	pid, err := queries.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int32(request.TeamID), Title: request.Name})
 	if err != nil {
+		log.Error("insufficient permission for creating project", "db error", err)
 		PrintError(w, "db error")
 		return
 	}
 	_, err = queries.InsertCommit(ctx, sqlcgen.InsertCommitParams{Projectid: pid, Userid: claims.Subject, Comment: "Initial commit", Numfiles: 0})
 	if err != nil {
+		log.Error("couldn't insert commit", "db error", err)
 		PrintError(w, "db error")
 		return
 	}
+	log.Info("succesfully created project", "project ID", pid, "name", request.Name)
 	PrintDefaultSuccess(w, "project created")
 }
 

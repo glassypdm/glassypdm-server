@@ -23,13 +23,13 @@ type Chunk struct {
 }
 
 type Commit struct {
-	Commitid  int32       `json:"commitid"`
-	Projectid int32       `json:"projectid"`
-	Userid    string      `json:"userid"`
-	Comment   string      `json:"comment"`
-	Numfiles  int32       `json:"numfiles"`
-	Cno       pgtype.Int4 `json:"cno"`
-	Timestamp int32       `json:"timestamp"`
+	Commitid  int32            `json:"commitid"`
+	Projectid int32            `json:"projectid"`
+	Userid    string           `json:"userid"`
+	Comment   string           `json:"comment"`
+	Numfiles  int32            `json:"numfiles"`
+	Cno       pgtype.Int4      `json:"cno"`
+	Timestamp pgtype.Timestamp `json:"timestamp"`
 }
 
 type File struct {

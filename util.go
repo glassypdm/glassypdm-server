@@ -42,7 +42,7 @@ func getConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 var queries sqlcgen.Queries
-var db_pool pgxpool.Pool
+var db_pool *pgxpool.Pool
 
 //go:embed schema.sql
 var ddl string

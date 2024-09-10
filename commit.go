@@ -151,7 +151,7 @@ type CommitDescription struct {
 	NumFiles     int    `json:"num_files"`
 	Author       string `json:"author"`
 	Comment      string `json:"comment"`
-	Timestamp    int    `json:"timestamp"`
+	Timestamp    int64  `json:"timestamp"`
 }
 
 type CommitList struct {
@@ -222,7 +222,7 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 			CommitNumber: int(Commit.Cno.Int32),
 			NumFiles:     int(Commit.Numfiles),
 			Comment:      Commit.Comment,
-			Timestamp:    int(Commit.Timestamp),
+			Timestamp:    Commit.Timestamp.Time.UnixNano() / 1000000000,
 			Author:       name,
 		})
 	}

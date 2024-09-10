@@ -298,15 +298,15 @@ type GetCommitInfoParams struct {
 }
 
 type GetCommitInfoRow struct {
-	Cno       pgtype.Int4 `json:"cno"`
-	Userid    string      `json:"userid"`
-	Timestamp int32       `json:"timestamp"`
-	Comment   string      `json:"comment"`
-	Numfiles  int32       `json:"numfiles"`
-	Path      string      `json:"path"`
-	Frno      pgtype.Int4 `json:"frno"`
-	Filehash  string      `json:"filehash"`
-	Blocksize int32       `json:"blocksize"`
+	Cno       pgtype.Int4      `json:"cno"`
+	Userid    string           `json:"userid"`
+	Timestamp pgtype.Timestamp `json:"timestamp"`
+	Comment   string           `json:"comment"`
+	Numfiles  int32            `json:"numfiles"`
+	Path      string           `json:"path"`
+	Frno      pgtype.Int4      `json:"frno"`
+	Filehash  string           `json:"filehash"`
+	Blocksize int32            `json:"blocksize"`
 }
 
 // TODO Fix
@@ -885,12 +885,12 @@ type ListProjectCommitsParams struct {
 }
 
 type ListProjectCommitsRow struct {
-	Cno       pgtype.Int4 `json:"cno"`
-	Numfiles  int32       `json:"numfiles"`
-	Userid    string      `json:"userid"`
-	Comment   string      `json:"comment"`
-	Commitid  int32       `json:"commitid"`
-	Timestamp int32       `json:"timestamp"`
+	Cno       pgtype.Int4      `json:"cno"`
+	Numfiles  int32            `json:"numfiles"`
+	Userid    string           `json:"userid"`
+	Comment   string           `json:"comment"`
+	Commitid  int32            `json:"commitid"`
+	Timestamp pgtype.Timestamp `json:"timestamp"`
 }
 
 func (q *Queries) ListProjectCommits(ctx context.Context, arg ListProjectCommitsParams) ([]ListProjectCommitsRow, error) {

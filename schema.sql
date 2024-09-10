@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS commit(
     comment TEXT NOT NULL,
     numfiles INTEGER NOT NULL,
     cno INTEGER,
-    timestamp INTEGER DEFAULT (strftime('%s','now')) NOT NULL,
+    timestamp TIMESTAMP DEFAULT NOW() NOT NULL,
     FOREIGN KEY(projectid) REFERENCES project(projectid)
 );
 
@@ -77,6 +77,12 @@ CREATE TABLE IF NOT EXISTS filerevision(
     FOREIGN KEY(commitid) REFERENCES commit(commitid)
 );
 
+CREATE TABLE IF NOT EXISTS block(
+    blockhash TEXT PRIMARY KEY NOT NULL,
+    s3key TEXT NOT NULL,
+    blocksize INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS chunk(
     chunkindex INTEGER NOT NULL,
     numchunks INTEGER NOT NULL,
@@ -88,12 +94,6 @@ CREATE TABLE IF NOT EXISTS chunk(
     UNIQUE(filehash, chunkindex)
 );
 
-CREATE TABLE IF NOT EXISTS block(
-    blockhash TEXT PRIMARY KEY NOT NULL,
-    s3key TEXT NOT NULL,
-    blocksize INTEGER NOT NULL
-);
-
 CREATE OR REPLACE FUNCTION update_commit_number()
 RETURNS TRIGGER
 LANGUAGE PLPGSQL
@@ -101,30 +101,11 @@ AS
 $$
 BEGIN
 UPDATE commit SET cno = (SELECT COUNT(*) FROM commit WHERE projectid = NEW.projectid) WHERE commitid = NEW.commitid;
+RETURN NEW;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION update_commit_number()
-RETURNS TRIGGER
-LANGUAGE PLPGSQL
-AS
-$$
-BEGIN
-UPDATE commit SET cno = (SELECT COUNT(*) FROM commit WHERE projectid = NEW.projectid) WHERE commitid = NEW.commitid;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION update_filerevision_number()
-RETURNS TRIGGER
-LANGUAGE PLPGSQL
-AS
-$$
-BEGIN
-UPDATE filerevision SET frno = (SELECT COUNT(*) FROM filerevision WHERE path = NEW.path AND projectid = NEW.projectid) WHERE frid = NEW.frid;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION create_file_entry()
+CREATE OR REPLACE FUNCTION audit_filerevision()
 RETURNS TRIGGER
 LANGUAGE PLPGSQL
 AS
@@ -132,11 +113,13 @@ $$
 BEGIN
 INSERT INTO file(projectid, path) VALUES (NEW.projectid, NEW.path)
 ON CONFLICT(projectid, path) DO NOTHING;
+
+UPDATE filerevision SET frno = (SELECT COUNT(*) FROM filerevision WHERE path = NEW.path AND projectid = NEW.projectid) WHERE frid = NEW.frid;
+
+RETURN NEW;
 END;
 $$;
 
-CREATE OR REPLACE TRIGGER commitnumber AFTER INSERT ON commit EXECUTE FUNCTION update_commit_number();
 
-CREATE OR REPLACE TRIGGER frnumber AFTER INSERT ON filerevision EXECUTE FUNCTION update_filerevision_number();
-
-CREATE OR REPLACE TRIGGER crfile AFTER INSERT ON filerevision EXECUTE FUNCTION create_file_entry();
+CREATE OR REPLACE TRIGGER commitnumber AFTER INSERT ON commit FOR EACH ROW EXECUTE FUNCTION update_commit_number();
+CREATE OR REPLACE TRIGGER filerevisionaudit AFTER INSERT ON filerevision FOR EACH ROW EXECUTE FUNCTION audit_filerevision();
