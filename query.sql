@@ -114,7 +114,7 @@ WHERE projectid = $1 AND path = $2 AND commitid = $3 LIMIT 1;
 
 -- name: GetFileChunks :many
 SELECT blockhash, chunkindex FROM chunk
-WHERE filehash = $1;
+WHERE filehash = $1 ORDER BY chunkindex ASC;
 
 -- name: GetProjectState :many
 SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, chunk.blocksize FROM chunk, filerevision a

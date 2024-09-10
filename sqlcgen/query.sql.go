@@ -329,7 +329,7 @@ func (q *Queries) GetCommitInfo(ctx context.Context, arg GetCommitInfoParams) (G
 
 const getFileChunks = `-- name: GetFileChunks :many
 SELECT blockhash, chunkindex FROM chunk
-WHERE filehash = $1
+WHERE filehash = $1 ORDER BY chunkindex ASC
 `
 
 type GetFileChunksRow struct {
