@@ -209,7 +209,7 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	var CommitDescriptions []CommitDescription
 	for _, Commit := range CommitDto {
 		// get author from clerk + userid
-		usr, err := user.Get(ctx, userId)
+		usr, err := user.Get(ctx, Commit.Userid)
 		name := ""
 		if err != nil {
 			PrintError(w, "invalid user id")
