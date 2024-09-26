@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -245,17 +244,24 @@ func getProjectPermissionByID(userId string, projectId int) int {
 		return 3
 	}
 
-	// TODO test
 	membership, err := queries.IsUserInPermissionGroup(ctx, sqlcgen.IsUserInPermissionGroupParams{Userid: userId, Projectid: int32(projectId)})
-	if err == sql.ErrNoRows {
-		return 1 // read only
-	} else if err != nil {
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			log.Debug("user not found in permission group")
+			return 1 // read only
+		}
+
+		log.Error("error grabbing project permission for", "user", userId, "project", projectId)
+		log.Debug("no permission")
 		return 0 // general error/no permission
 	}
+
 	if membership == userId {
+		log.Debug("write permission")
 		return 2
 	}
 
+	log.Error("unhandled case when grabbing project permission", userId, projectId, err)
 	// if we are here, something went wrong
 	return 0
 }
@@ -277,6 +283,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if getProjectPermissionByID(claims.Subject, projectId) < 1 {
+		log.Warn("insufficient permission", "user", claims.Subject, "projectId", projectId)
 		PrintError(w, "insufficient permission")
 		return
 	}
