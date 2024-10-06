@@ -311,7 +311,7 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 	for _, user := range TeamMembership {
 		usr, err := GetUserByID(user.Userid)
 		if !err {
-			log.Warn("couldn't find user", usr)
+			log.Warn("couldn't find user", user.Userid)
 			continue
 		}
 		output.TeamMembership = append(output.TeamMembership, usr)
@@ -365,6 +365,15 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var output PermissionGroupTeamInfo
+
+	projects, err := queries.FindTeamProjects(ctx, int32(teamId))
+	if err != nil {
+		PrintError(w, "db error")
+		return
+	}
+	for _, projectDto := range projects {
+		output.TeamProjects = append(output.TeamProjects, Project{Id: int(projectDto.Projectid), Name: projectDto.Title})
+	}
 
 	users, err := queries.GetTeamMembership(ctx, int32(teamId))
 	if err != nil {
