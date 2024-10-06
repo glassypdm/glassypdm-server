@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
+	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 )
@@ -334,4 +335,76 @@ type PermissionGroupInfo struct {
 	PGroupProjects   []Project `json:"pg_projects"`
 	TeamMembership   []User    `json:"team_membership"`
 	PGroupMembership []User    `json:"pg_membership"`
+}
+
+type PermissionGroup struct {
+	PGroupId         int       `json:"pgroup_id"`
+	PGroupName       string    `json:"pgroup_name"`
+	PGroupProjects   []Project `json:"pg_projects"`
+	PGroupMembership []string  `json:"pg_membership"`
+}
+type PermissionGroupTeamInfo struct {
+	TeamMembership   []User            `json:"team_membership"`
+	PermissionGroups []PermissionGroup `json:"permissiongroups"`
+	TeamProjects     []Project         `json:"team_projects"`
+}
+
+func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	_, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	teamIdStr := chi.URLParam(r, "team-id")
+	teamId, err := strconv.Atoi(teamIdStr)
+	if err != nil {
+		PrintError(w, "incorrect format")
+		return
+	}
+
+	var output PermissionGroupTeamInfo
+
+	users, err := queries.GetTeamMembership(ctx, int32(teamId))
+	if err != nil {
+		PrintError(w, "db error")
+		return
+	}
+	for _, UserDto := range users {
+		usr, err := user.Get(ctx, UserDto.Userid)
+		if err != nil {
+			log.Warn("userid not found in clerk", "user", UserDto.Userid)
+			continue
+		}
+		output.TeamMembership = append(output.TeamMembership, User{UserId: UserDto.Userid, Name: *usr.FirstName + " " + *usr.LastName, EmailId: ""})
+	}
+	groups, err := queries.ListPermissionGroupForTeam(ctx, int32(teamId))
+	if err != nil {
+		PrintError(w, "db error")
+		return
+	}
+	for _, GroupDto := range groups {
+		var group PermissionGroup
+		group.PGroupId = int(GroupDto.Pgroupid)
+		group.PGroupName = GroupDto.Name
+		mapping, err := queries.GetPermissionGroupMapping(ctx, int32(group.PGroupId))
+		if err != nil {
+			log.Warn("db error while querying permission group mapping", "id", group.PGroupId)
+			continue
+		}
+		for _, MapDto := range mapping {
+			group.PGroupProjects = append(group.PGroupProjects, Project{Id: int(MapDto.Projectid), Team: "", Name: MapDto.Title})
+		}
+
+		members, err := queries.ListPermissionGroupMembership(ctx, int32(group.PGroupId))
+		if err != nil {
+			log.Warn("db error while querying permission group membership", "id", group.PGroupId)
+			continue
+		}
+		group.PGroupMembership = members
+		output.PermissionGroups = append(output.PermissionGroups, group)
+	}
+	output_bytes, _ := json.Marshal(output)
+	PrintSuccess(w, string(output_bytes))
 }

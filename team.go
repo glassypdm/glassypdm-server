@@ -11,7 +11,6 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
-	"github.com/clerk/clerk-sdk-go/v2/emailaddress"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
@@ -327,6 +326,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		m.Name = *usr.FirstName + " " + *usr.LastName
+		/* POSTPONED  TODO
 		email, err := emailaddress.Get(ctx, *usr.PrimaryEmailAddressID)
 		if err != nil {
 			log.Warn("couldn't get email from clerk", "emailID", *usr.PrimaryEmailAddressID)
@@ -334,8 +334,11 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 		} else {
 			m.Email = email.EmailAddress
 		}
+		*/
+		m.Email = ""
 		members = append(members, m)
 	}
+	log.Info("found members for team", len(members))
 
 	output := TeamInformation{
 		TeamName: name,
@@ -350,4 +353,56 @@ type TeamInformation struct {
 	TeamName string   `json:"team_name"`
 	Role     string   `json:"role"`
 	Members  []Member `json:"members"`
+}
+
+func GetBasicTeamInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	userId := claims.Subject
+	teamIdStr := chi.URLParam(r, "team-id")
+	teamId, err := strconv.Atoi(teamIdStr)
+	if err != nil {
+		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
+		return
+	}
+
+	// check if team exists
+	name, err := queries.GetTeamName(ctx, int32(teamId))
+	if err != nil {
+		fmt.Fprintf(w, `{ "response": "team DNE" }`)
+		return
+	}
+
+	level := checkPermissionByID(teamId, userId)
+	levelStr := ""
+	// if level is negative, you are not in the team
+	// and do not have permission to see team membership
+	if level < 0 {
+		fmt.Fprintf(w, `{ "response": "no permission" }`)
+		return
+	}
+
+	switch level {
+	case 1:
+		levelStr = "Member"
+	case 2:
+		levelStr = "Manager"
+	case 3:
+		levelStr = "Owner"
+	default:
+		levelStr = "Undefined"
+	}
+
+	output := TeamInformation{
+		TeamName: name,
+		Role:     levelStr,
+		Members:  []Member{},
+	}
+	output_bytes, _ := json.Marshal(output)
+	PrintSuccess(w, string(output_bytes))
 }
