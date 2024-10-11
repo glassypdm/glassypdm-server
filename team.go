@@ -62,11 +62,13 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	// create team entry and add user as owner
 	id, err := queries.InsertTeam(ctx, request.Name)
 	if err != nil {
-		if strings.Contains(strings.Split(err.Error(), "SQLite error: ")[1], "UNIQUE constraint failed") {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			log.Warn("team name exists already", "requested name", request.Name)
 			PrintError(w, "team name exists already")
-		} else {
-			PrintError(w, "db error")
+			return
 		}
+		log.Error("unhandled db error when creating team", "db", err)
+		PrintError(w, "db error")
 		return
 	}
 
