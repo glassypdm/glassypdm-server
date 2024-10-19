@@ -20,6 +20,7 @@ type Chunk struct {
 	Filehash   string `json:"filehash"`
 	Blockhash  string `json:"blockhash"`
 	Blocksize  int32  `json:"blocksize"`
+	Filesize   int32  `json:"filesize"`
 }
 
 type Commit struct {
@@ -47,6 +48,7 @@ type Filerevision struct {
 	Filehash   string      `json:"filehash"`
 	Changetype int32       `json:"changetype"`
 	Numchunks  int32       `json:"numchunks"`
+	Filesize   int32       `json:"filesize"`
 	Frno       pgtype.Int4 `json:"frno"`
 }
 

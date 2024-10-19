@@ -143,34 +143,21 @@ SELECT COUNT(commitid) FROM commit
 WHERE projectid = $1
 LIMIT 1;
 
--- TODO Fix
 -- name: GetCommitInfo :one
 SELECT
-  a.cno,
-  a.userid,
-  a.timestamp,
-  a.comment,
-  a.numfiles,
-  hehe.path,
-  hehe.frno,
-  hehe.filehash,
-  hehe.blocksize
-FROM
-  commit a
-  INNER JOIN (
-    SELECT
-      b.filehash,
-      b.blocksize,
-      fr.path,
-      fr.frno,
-      fr.commitid
-    FROM
-      filerevision fr
-      INNER JOIN chunk b ON fr.filehash = b.filehash
-    WHERE fr.commitid = $1
-  ) hehe ON a.commitid = hehe.commitid
+  cno,
+  userid,
+  timestamp,
+  comment,
+  numfiles
+FROM commit
 WHERE
-  a.commitid = $2 LIMIT 1;
+  commitid = $1 LIMIT 1;
+
+-- name: GetFileRevisionsByCommitId :many
+SELECT frid, path, frno, changetype, filesize
+FROM filerevision
+WHERE commitid = $1;
 
 -- name: CreatePermissionGroup :exec
 INSERT INTO permissiongroup(teamid, name) VALUES($1, $2);

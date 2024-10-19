@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS filerevision(
     filehash TEXT NOT NULL,
     changetype INTEGER NOT NULL,
     numchunks INTEGER NOT NULL,
+    filesize INTEGER NOT NULL DEFAULT 0,
     frno INTEGER,
     FOREIGN KEY(projectid) REFERENCES project(projectid),
     FOREIGN KEY(commitid) REFERENCES commit(commitid)
@@ -89,6 +90,7 @@ CREATE TABLE IF NOT EXISTS chunk(
     filehash TEXT NOT NULL,
     blockhash TEXT NOT NULL,
     blocksize INTEGER NOT NULL,
+    filesize INTEGER NOT NULL,
     PRIMARY KEY(chunkindex, blockhash),
     FOREIGN KEY(blockhash) REFERENCES block(blockhash),
     UNIQUE(filehash, chunkindex)
@@ -115,6 +117,7 @@ INSERT INTO file(projectid, path) VALUES (NEW.projectid, NEW.path)
 ON CONFLICT(projectid, path) DO NOTHING;
 
 UPDATE filerevision SET frno = (SELECT COUNT(*) FROM filerevision WHERE path = NEW.path AND projectid = NEW.projectid) WHERE frid = NEW.frid;
+UPDATE filerevision set filesize = (SELECT COALESCE(SUM(blocksize), 0) FROM chunk WHERE chunk.filehash = NEW.filehash);
 
 RETURN NEW;
 END;

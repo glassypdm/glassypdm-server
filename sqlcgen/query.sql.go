@@ -265,37 +265,15 @@ func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]FindUserT
 
 const getCommitInfo = `-- name: GetCommitInfo :one
 SELECT
-  a.cno,
-  a.userid,
-  a.timestamp,
-  a.comment,
-  a.numfiles,
-  hehe.path,
-  hehe.frno,
-  hehe.filehash,
-  hehe.blocksize
-FROM
-  commit a
-  INNER JOIN (
-    SELECT
-      b.filehash,
-      b.blocksize,
-      fr.path,
-      fr.frno,
-      fr.commitid
-    FROM
-      filerevision fr
-      INNER JOIN chunk b ON fr.filehash = b.filehash
-    WHERE fr.commitid = $1
-  ) hehe ON a.commitid = hehe.commitid
+  cno,
+  userid,
+  timestamp,
+  comment,
+  numfiles
+FROM commit
 WHERE
-  a.commitid = $2 LIMIT 1
+  commitid = $1 LIMIT 1
 `
-
-type GetCommitInfoParams struct {
-	Commitid   int32 `json:"commitid"`
-	Commitid_2 int32 `json:"commitid_2"`
-}
 
 type GetCommitInfoRow struct {
 	Cno       pgtype.Int4      `json:"cno"`
@@ -303,15 +281,10 @@ type GetCommitInfoRow struct {
 	Timestamp pgtype.Timestamp `json:"timestamp"`
 	Comment   string           `json:"comment"`
 	Numfiles  int32            `json:"numfiles"`
-	Path      string           `json:"path"`
-	Frno      pgtype.Int4      `json:"frno"`
-	Filehash  string           `json:"filehash"`
-	Blocksize int32            `json:"blocksize"`
 }
 
-// TODO Fix
-func (q *Queries) GetCommitInfo(ctx context.Context, arg GetCommitInfoParams) (GetCommitInfoRow, error) {
-	row := q.db.QueryRow(ctx, getCommitInfo, arg.Commitid, arg.Commitid_2)
+func (q *Queries) GetCommitInfo(ctx context.Context, commitid int32) (GetCommitInfoRow, error) {
+	row := q.db.QueryRow(ctx, getCommitInfo, commitid)
 	var i GetCommitInfoRow
 	err := row.Scan(
 		&i.Cno,
@@ -319,10 +292,6 @@ func (q *Queries) GetCommitInfo(ctx context.Context, arg GetCommitInfoParams) (G
 		&i.Timestamp,
 		&i.Comment,
 		&i.Numfiles,
-		&i.Path,
-		&i.Frno,
-		&i.Filehash,
-		&i.Blocksize,
 	)
 	return i, err
 }
@@ -373,6 +342,46 @@ func (q *Queries) GetFileHash(ctx context.Context, arg GetFileHashParams) (strin
 	var filehash string
 	err := row.Scan(&filehash)
 	return filehash, err
+}
+
+const getFileRevisionsByCommitId = `-- name: GetFileRevisionsByCommitId :many
+SELECT frid, path, frno, changetype, filesize
+FROM filerevision
+WHERE commitid = $1
+`
+
+type GetFileRevisionsByCommitIdRow struct {
+	Frid       int32       `json:"frid"`
+	Path       string      `json:"path"`
+	Frno       pgtype.Int4 `json:"frno"`
+	Changetype int32       `json:"changetype"`
+	Filesize   int32       `json:"filesize"`
+}
+
+func (q *Queries) GetFileRevisionsByCommitId(ctx context.Context, commitid int32) ([]GetFileRevisionsByCommitIdRow, error) {
+	rows, err := q.db.Query(ctx, getFileRevisionsByCommitId, commitid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFileRevisionsByCommitIdRow
+	for rows.Next() {
+		var i GetFileRevisionsByCommitIdRow
+		if err := rows.Scan(
+			&i.Frid,
+			&i.Path,
+			&i.Frno,
+			&i.Changetype,
+			&i.Filesize,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getLatestCommit = `-- name: GetLatestCommit :one

@@ -235,7 +235,7 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	PrintSuccess(w, string(JSONList))
 }
 
-func GetCommitInfo(w http.ResponseWriter, r *http.Request) {
+func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {

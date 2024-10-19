@@ -85,7 +85,7 @@ func main() {
 		r.Post("/permission", SetPermission)
 		r.Post("/commit", CreateCommit)
 		r.Get("/commit/select/by-project/{project-id}", GetCommits)
-		r.Get("/commit/by-id/{commit-id}", GetCommitInfo)
+		r.Get("/commit/by-id/{commit-id}", GetCommitInformation)
 		r.Post("/project", CreateProject)
 		r.Get("/project/info", GetProjectInfo)
 		r.Get("/project/user", GetProjectsForUser)
