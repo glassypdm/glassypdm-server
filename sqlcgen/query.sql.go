@@ -471,10 +471,10 @@ func (q *Queries) GetProjectLivingFiles(ctx context.Context, projectid int32) ([
 }
 
 const getProjectState = `-- name: GetProjectState :many
-SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, chunk.blocksize FROM chunk, filerevision a
+SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
-WHERE a.projectid = $1 AND a.filehash = chunk.filehash
+WHERE a.projectid = $1
 `
 
 type GetProjectStateRow struct {
