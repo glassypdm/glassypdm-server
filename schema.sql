@@ -117,7 +117,7 @@ INSERT INTO file(projectid, path) VALUES (NEW.projectid, NEW.path)
 ON CONFLICT(projectid, path) DO NOTHING;
 
 UPDATE filerevision SET frno = (SELECT COUNT(*) FROM filerevision WHERE path = NEW.path AND projectid = NEW.projectid) WHERE frid = NEW.frid;
-UPDATE filerevision set filesize = (SELECT COALESCE(SUM(blocksize), 0) FROM chunk WHERE chunk.filehash = NEW.filehash);
+UPDATE filerevision set filesize = (SELECT COALESCE(SUM(blocksize), 0) FROM chunk WHERE chunk.filehash = NEW.filehash) WHERE frid = NEW.frid;
 
 RETURN NEW;
 END;
