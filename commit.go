@@ -147,7 +147,7 @@ type CreateCommitOutput struct {
 
 type CommitDescription struct {
 	CommitId     int    `json:"commit_id"`
-	CommitNumber int    `json:"commit_number"`
+	CommitNumber int    `json:"commit_no"`
 	NumFiles     int    `json:"num_files"`
 	Author       string `json:"author"`
 	Comment      string `json:"comment"`
@@ -213,10 +213,10 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 		name := ""
 		if err != nil {
 			PrintError(w, "invalid user id")
+			return
 		}
 		name = *usr.FirstName + " " + *usr.LastName
 
-		// TODO verify commit number
 		CommitDescriptions = append(CommitDescriptions, CommitDescription{
 			CommitId:     int(Commit.Commitid),
 			CommitNumber: int(Commit.Cno.Int32),
@@ -231,6 +231,7 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	JSONList, err := json.Marshal(output)
 	if err != nil {
 		PrintError(w, "json error")
+		return
 	}
 	PrintSuccess(w, string(JSONList))
 }
@@ -246,4 +247,67 @@ func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
 	_ = ctx
 	_ = claims
 
+	// validate commit id
+	CommitIdStr := chi.URLParam(r, "commit-id")
+	CommitId, err := strconv.Atoi(CommitIdStr)
+	if err != nil {
+		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
+		PrintError(w, "incorrect format")
+		return
+	}
+
+	// get commit information
+	CommitInfoDto, err := queries.GetCommitInfo(ctx, int32(CommitId))
+	if err != nil {
+		PrintError(w, "db error")
+		log.Warn("encountered db error when getting commit info", "db", err, "commit-id", CommitId)
+		return
+	}
+
+	// check permission - needs read permission minimum
+	if getProjectPermissionByID(claims.Subject, int(CommitInfoDto.Projectid)) < 1 {
+		log.Warn("insufficient permission", "user", claims.Subject, "projectId", CommitInfoDto.Projectid)
+		PrintError(w, "insufficient permission")
+		return
+	}
+
+	// get file revisions
+	Files, err := queries.GetFileRevisionsByCommitId(ctx, int32(CommitId))
+	if err != nil {
+		PrintError(w, "db error")
+		log.Warn("encountered db error when getting file revisions for commit", "db", err, "commit-id", CommitId)
+		return
+	}
+
+	var Output CommitInformation
+	Output.FilesChanged = Files
+
+	usr, err := user.Get(ctx, CommitInfoDto.Userid)
+	name := ""
+	if err != nil {
+		PrintError(w, "invalid user id")
+		return
+	}
+	name = *usr.FirstName + " " + *usr.LastName
+
+	Output.Description = CommitDescription{
+		CommitId:     CommitId,
+		CommitNumber: int(CommitInfoDto.Cno.Int32),
+		NumFiles:     int(CommitInfoDto.Numfiles),
+		Comment:      CommitInfoDto.Comment,
+		Timestamp:    CommitInfoDto.Timestamp.Time.UnixNano() / 1000000000,
+		Author:       name,
+	}
+
+	OutputJson, err := json.Marshal(Output)
+	if err != nil {
+		PrintError(w, "json error")
+		return
+	}
+	PrintSuccess(w, string(OutputJson))
+}
+
+type CommitInformation struct {
+	Description  CommitDescription                       `json:"description"`
+	FilesChanged []sqlcgen.GetFileRevisionsByCommitIdRow `json:"files"`
 }

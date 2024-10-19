@@ -130,7 +130,7 @@ WHERE a.projectid = $1;
 SELECT a.frid, a.path FROM filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
-WHERE a.projectid = $1 and changetype != 3;
+WHERE a.projectid = $1 AND changetype != 3;
 
 -- name: ListProjectCommits :many
 SELECT cno, numfiles, userid, comment, commitid, timestamp FROM commit
@@ -149,13 +149,14 @@ SELECT
   userid,
   timestamp,
   comment,
-  numfiles
+  numfiles,
+  projectid
 FROM commit
 WHERE
   commitid = $1 LIMIT 1;
 
 -- name: GetFileRevisionsByCommitId :many
-SELECT frid, path, frno, changetype, filesize
+SELECT frid as filerevision_id, path, frno as filerevision_no, changetype, filesize, commitid as commit_id
 FROM filerevision
 WHERE commitid = $1;
 

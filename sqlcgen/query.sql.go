@@ -269,7 +269,8 @@ SELECT
   userid,
   timestamp,
   comment,
-  numfiles
+  numfiles,
+  projectid
 FROM commit
 WHERE
   commitid = $1 LIMIT 1
@@ -281,6 +282,7 @@ type GetCommitInfoRow struct {
 	Timestamp pgtype.Timestamp `json:"timestamp"`
 	Comment   string           `json:"comment"`
 	Numfiles  int32            `json:"numfiles"`
+	Projectid int32            `json:"projectid"`
 }
 
 func (q *Queries) GetCommitInfo(ctx context.Context, commitid int32) (GetCommitInfoRow, error) {
@@ -292,6 +294,7 @@ func (q *Queries) GetCommitInfo(ctx context.Context, commitid int32) (GetCommitI
 		&i.Timestamp,
 		&i.Comment,
 		&i.Numfiles,
+		&i.Projectid,
 	)
 	return i, err
 }
@@ -345,17 +348,18 @@ func (q *Queries) GetFileHash(ctx context.Context, arg GetFileHashParams) (strin
 }
 
 const getFileRevisionsByCommitId = `-- name: GetFileRevisionsByCommitId :many
-SELECT frid, path, frno, changetype, filesize
+SELECT frid as filerevision_id, path, frno as filerevision_no, changetype, filesize, commitid as commit_id
 FROM filerevision
 WHERE commitid = $1
 `
 
 type GetFileRevisionsByCommitIdRow struct {
-	Frid       int32       `json:"frid"`
-	Path       string      `json:"path"`
-	Frno       pgtype.Int4 `json:"frno"`
-	Changetype int32       `json:"changetype"`
-	Filesize   int32       `json:"filesize"`
+	FilerevisionID int32       `json:"filerevision_id"`
+	Path           string      `json:"path"`
+	FilerevisionNo pgtype.Int4 `json:"filerevision_no"`
+	Changetype     int32       `json:"changetype"`
+	Filesize       int32       `json:"filesize"`
+	CommitID       int32       `json:"commit_id"`
 }
 
 func (q *Queries) GetFileRevisionsByCommitId(ctx context.Context, commitid int32) ([]GetFileRevisionsByCommitIdRow, error) {
@@ -368,11 +372,12 @@ func (q *Queries) GetFileRevisionsByCommitId(ctx context.Context, commitid int32
 	for rows.Next() {
 		var i GetFileRevisionsByCommitIdRow
 		if err := rows.Scan(
-			&i.Frid,
+			&i.FilerevisionID,
 			&i.Path,
-			&i.Frno,
+			&i.FilerevisionNo,
 			&i.Changetype,
 			&i.Filesize,
+			&i.CommitID,
 		); err != nil {
 			return nil, err
 		}
@@ -442,7 +447,7 @@ const getProjectLivingFiles = `-- name: GetProjectLivingFiles :many
 SELECT a.frid, a.path FROM filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
-WHERE a.projectid = $1 and changetype != 3
+WHERE a.projectid = $1 AND changetype != 3
 `
 
 type GetProjectLivingFilesRow struct {
