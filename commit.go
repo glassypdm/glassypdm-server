@@ -234,3 +234,16 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	}
 	PrintSuccess(w, string(JSONList))
 }
+
+func GetCommitInfo(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	_ = ctx
+	_ = claims
+
+}

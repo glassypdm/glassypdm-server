@@ -14,9 +14,10 @@ import (
 )
 
 type Project struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
-	Team string `json:"team"`
+	Id     int    `json:"id"`
+	Name   string `json:"name"`
+	Team   string `json:"team"`
+	TeamId int    `json:"team_id"`
 }
 
 type Team struct {
@@ -78,7 +79,7 @@ func GetProjectsForUser(w http.ResponseWriter, r *http.Request) {
 			log.Error("couldn't retrieve team's projects", "teamid", team.Teamid, "err", err.Error())
 		}
 		for _, tp := range TeamProjects {
-			projects = append(projects, Project{Id: int(tp.Projectid), Name: tp.Title, Team: tp.Name})
+			projects = append(projects, Project{Id: int(tp.Projectid), Name: tp.Title, Team: tp.Name, TeamId: int(team.Teamid)})
 		}
 	}
 

@@ -11,6 +11,10 @@ ORDER BY commitid ASC LIMIT 1;
 SELECT name FROM team
 WHERE teamid = $1 LIMIT 1;
 
+-- name: GetTeamFromName :one
+SELECT teamid FROM team
+WHERE name = $1 LIMIT 1;
+
 -- name: GetTeamFromProject :one
 SELECT teamid FROM project
 WHERE projectid = $1 LIMIT 1;

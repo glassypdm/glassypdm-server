@@ -258,8 +258,32 @@ type GetTeamForUserResponse struct {
 	Teams []Team `json:"teams"`
 }
 
-func getTeamInformation(w http.ResponseWriter, r *http.Request) {
+func getTeamInformationByName(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	userId := claims.Subject
+	teamName := chi.URLParam(r, "team-name")
+
+	if teamName == "" {
+		PrintError(w, "incorrect format")
+		return
+	}
+
+	teamid, err := queries.GetTeamFromName(ctx, teamName)
+	if err != nil {
+		PrintError(w, "team not found")
+		return
+	}
+
+	QueryTeamInformation(w, int(teamid), userId)
+}
+
+func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -274,6 +298,12 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	QueryTeamInformation(w, teamId, userId)
+
+}
+
+func QueryTeamInformation(w http.ResponseWriter, teamId int, userId string) {
+	ctx := context.Background()
 	// check if team exists
 	name, err := queries.GetTeamName(ctx, int32(teamId))
 	if err != nil {
@@ -344,6 +374,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 
 	output := TeamInformation{
 		TeamName: name,
+		TeamId:   teamId,
 		Role:     levelStr,
 		Members:  members,
 	}
@@ -353,6 +384,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 
 type TeamInformation struct {
 	TeamName string   `json:"team_name"`
+	TeamId   int      `json:"team_id"`
 	Role     string   `json:"role"`
 	Members  []Member `json:"members"`
 }

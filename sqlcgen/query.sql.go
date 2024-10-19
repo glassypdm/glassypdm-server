@@ -528,6 +528,18 @@ func (q *Queries) GetTeamByProject(ctx context.Context, projectid int32) (int32,
 	return teamid, err
 }
 
+const getTeamFromName = `-- name: GetTeamFromName :one
+SELECT teamid FROM team
+WHERE name = $1 LIMIT 1
+`
+
+func (q *Queries) GetTeamFromName(ctx context.Context, name string) (int32, error) {
+	row := q.db.QueryRow(ctx, getTeamFromName, name)
+	var teamid int32
+	err := row.Scan(&teamid)
+	return teamid, err
+}
+
 const getTeamFromPGroup = `-- name: GetTeamFromPGroup :one
 SELECT teamid FROM permissiongroup WHERE
 pgroupid = $1 LIMIT 1
