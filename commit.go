@@ -147,7 +147,7 @@ type CreateCommitOutput struct {
 
 type CommitDescription struct {
 	CommitId     int    `json:"commit_id"`
-	CommitNumber int    `json:"commit_no"`
+	CommitNumber int    `json:"commit_number"`
 	NumFiles     int    `json:"num_files"`
 	Author       string `json:"author"`
 	Comment      string `json:"comment"`

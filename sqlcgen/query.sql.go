@@ -348,18 +348,19 @@ func (q *Queries) GetFileHash(ctx context.Context, arg GetFileHashParams) (strin
 }
 
 const getFileRevisionsByCommitId = `-- name: GetFileRevisionsByCommitId :many
-SELECT frid as filerevision_id, path, frno as filerevision_no, changetype, filesize, commitid as commit_id
+SELECT frid as filerevision_id, path, frno as filerevision_number, changetype, filesize, commitid as commit_id, projectid as project_id
 FROM filerevision
 WHERE commitid = $1
 `
 
 type GetFileRevisionsByCommitIdRow struct {
-	FilerevisionID int32       `json:"filerevision_id"`
-	Path           string      `json:"path"`
-	FilerevisionNo pgtype.Int4 `json:"filerevision_no"`
-	Changetype     int32       `json:"changetype"`
-	Filesize       int32       `json:"filesize"`
-	CommitID       int32       `json:"commit_id"`
+	FilerevisionID     int32       `json:"filerevision_id"`
+	Path               string      `json:"path"`
+	FilerevisionNumber pgtype.Int4 `json:"filerevision_number"`
+	Changetype         int32       `json:"changetype"`
+	Filesize           int32       `json:"filesize"`
+	CommitID           int32       `json:"commit_id"`
+	ProjectID          int32       `json:"project_id"`
 }
 
 func (q *Queries) GetFileRevisionsByCommitId(ctx context.Context, commitid int32) ([]GetFileRevisionsByCommitIdRow, error) {
@@ -374,10 +375,11 @@ func (q *Queries) GetFileRevisionsByCommitId(ctx context.Context, commitid int32
 		if err := rows.Scan(
 			&i.FilerevisionID,
 			&i.Path,
-			&i.FilerevisionNo,
+			&i.FilerevisionNumber,
 			&i.Changetype,
 			&i.Filesize,
 			&i.CommitID,
+			&i.ProjectID,
 		); err != nil {
 			return nil, err
 		}

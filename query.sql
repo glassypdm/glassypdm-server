@@ -156,7 +156,7 @@ WHERE
   commitid = $1 LIMIT 1;
 
 -- name: GetFileRevisionsByCommitId :many
-SELECT frid as filerevision_id, path, frno as filerevision_no, changetype, filesize, commitid as commit_id
+SELECT frid as filerevision_id, path, frno as filerevision_number, changetype, filesize, commitid as commit_id, projectid as project_id
 FROM filerevision
 WHERE commitid = $1;
 
