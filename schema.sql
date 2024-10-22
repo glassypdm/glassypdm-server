@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS chunk(
     blockhash TEXT NOT NULL,
     blocksize INTEGER NOT NULL,
     filesize INTEGER NOT NULL,
-    PRIMARY KEY(chunkindex, blockhash),
+    PRIMARY KEY(filehash, chunkindex),
     FOREIGN KEY(blockhash) REFERENCES block(blockhash),
     UNIQUE(filehash, chunkindex)
 );
