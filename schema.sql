@@ -96,6 +96,16 @@ CREATE TABLE IF NOT EXISTS chunk(
     UNIQUE(filehash, chunkindex)
 );
 
+CREATE TABLE IF NOT EXISTS clerkcache(
+    clerkid TEXT PRIMARY KEY NOT NULL,
+    type TEXT NOT NULL,
+    value TEXT NOT NULL,
+    encodingscheme TEXT NOT NULL,
+    encodingkey TEXT NOT NULL,
+    created BIGINT NOT NULL,
+    expires BIGINT NOT NULL
+);
+
 CREATE OR REPLACE FUNCTION update_commit_number()
 RETURNS TRIGGER
 LANGUAGE PLPGSQL

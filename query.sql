@@ -207,3 +207,17 @@ pgme.userid = $1 AND pgma.projectid = $2 AND pgma.pgroupid = pgme.pgroupid;
 -- name: GetTeamFromPGroup :one
 SELECT teamid FROM permissiongroup WHERE
 pgroupid = $1 LIMIT 1;
+
+-- name: UpsertClerkCache :exec
+INSERT INTO clerkcache(clerkid, type, value, encodingscheme, encodingkey, created, expires) VALUES($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT(clerkid)
+DO UPDATE SET
+type = EXCLUDED.type,
+value = EXCLUDED.value,
+encodingscheme = EXCLUDED.encodingscheme,
+encodingkey = EXCLUDED.encodingkey,
+created = EXCLUDED.created,
+expires = EXCLUDED.expires;
+
+-- name: GetClerkCache :one
+SELECT * FROM clerkcache WHERE clerkid = $1 LIMIT 1;
