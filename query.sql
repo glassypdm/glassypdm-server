@@ -40,7 +40,8 @@ WHERE tp.userid = $1;
 
 -- name: GetTeamMembership :many
 SELECT userid, level FROM teampermission
-WHERE teamid = $1;
+WHERE teamid = $1
+ORDER by level desc;
 
 -- name: FindTeamProjects :many
 SELECT projectid, title, name FROM project INNER JOIN team ON team.teamid = project.teamid

@@ -583,6 +583,7 @@ func (q *Queries) GetTeamFromProject(ctx context.Context, projectid int32) (int3
 const getTeamMembership = `-- name: GetTeamMembership :many
 SELECT userid, level FROM teampermission
 WHERE teamid = $1
+ORDER by level desc
 `
 
 type GetTeamMembershipRow struct {
