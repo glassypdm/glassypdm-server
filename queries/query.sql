@@ -82,17 +82,6 @@ INSERT INTO commit(projectid, userid, comment, numfiles)
 VALUES ($1, $2, $3, $4)
 RETURNING commitid;
 
--- name: InsertChunk :exec
-INSERT INTO chunk(chunkindex, numchunks, filehash, blockhash, blocksize)
-VALUES ($1, $2, $3, $4, $5);
-
--- name: InsertHash :exec
-INSERT INTO block(blockhash, s3key, blocksize)
-VALUES ($1, $2, $3);
-
--- name: RemoveHash :exec
-DELETE FROM block WHERE blockhash = $1;
-
 -- name: InsertFile :exec
 INSERT INTO file(projectid, path)
 VALUES ($1, $2);
@@ -109,23 +98,32 @@ VALUES ($1, $2, $3, $4, $5, $6), ($7, $8, $9, $10, $11, $12);
 SELECT teamid FROM project
 WHERE projectid = $1 LIMIT 1;
 
--- name: GetS3Key :one
-SELECT s3key FROM block
-WHERE blockhash = $1 LIMIT 1;
-
 -- name: GetFileHash :one
 SELECT filehash FROM filerevision
 WHERE projectid = $1 AND path = $2 AND commitid = $3 LIMIT 1;
-
--- name: GetFileChunks :many
-SELECT blockhash, chunkindex FROM chunk
-WHERE filehash = $1 ORDER BY chunkindex ASC;
 
 -- name: GetProjectState :many
 SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
 INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
 WHERE a.projectid = $1;
+
+-- name: GetProjectStateAtCommit :many
+SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+ON a.path = b.path AND a.frid = b.frid
+WHERE a.projectid = $1 AND a.commitid <= $2;
+
+-- name: GetProjectDiffBetweenCommits :many
+SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+ON a.path = b.path AND a.frid = b.frid
+WHERE a.projectid = $1 AND a.commitid <= $2
+INTERSECT
+SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+ON a.path = b.path AND a.frid = b.frid
+WHERE a.projectid = $1 AND a.commitid <= $3;
 
 -- name: GetProjectLivingFiles :many
 SELECT a.frid, a.path FROM filerevision a
@@ -160,51 +158,3 @@ WHERE
 SELECT frid as filerevision_id, path, frno as filerevision_number, changetype, filesize, commitid as commit_id, projectid as project_id
 FROM filerevision
 WHERE commitid = $1;
-
--- name: CreatePermissionGroup :exec
-INSERT INTO permissiongroup(teamid, name) VALUES($1, $2);
-
--- name: AddMemberToPermissionGroup :exec
-INSERT INTO pgmembership(pgroupid, userid) VALUES($1, $2);
-
--- name: MapProjectToPermissionGroup :exec
-INSERT INTO pgmapping(pgroupid, projectid) VALUES($1, $2);
-
--- name: ListPermissionGroupForTeam :many
-SELECT pg.pgroupid, pg.name, count(pgm.userid) as count
-FROM permissiongroup pg LEFT JOIN pgmembership pgm ON pg.pgroupid = pgm.pgroupid
-WHERE pg.teamid = $1 GROUP BY pg.pgroupid;
-
--- name: ListPermissionGroupMembership :many
-SELECT userid FROM pgmembership WHERE pgroupid = $1;
-
--- name: GetPermissionGroupMapping :many
-SELECT p.projectid, p.title FROM pgmapping pg, project p
-WHERE pg.pgroupid = $1 AND pg.projectid = p.projectid;
-
--- name: RemoveMemberFromPermissionGroup :exec
-DELETE FROM pgmembership WHERE pgroupid = $1 AND userid = $2;
-
--- name: RemoveProjectFromPermissionGroup :exec
-DELETE FROM pgmapping WHERE pgroupid = $1 AND projectid = $2;
-
--- name: DropPermissionGroupMembership :exec
-DELETE FROM pgmembership WHERE pgroupid = $1;
-
--- name: DropPermissionGroupMapping :exec
-DELETE FROM pgmapping WHERE pgroupid = $1;
-
--- name: DeletePermissionGroup :exec
-DELETE FROM permissiongroup WHERE pgroupid = $1;
-
--- name: FindUserInPermissionGroup :many
-SELECT pgroupid FROM pgmembership WHERE
-userid = $1;
-
--- name: IsUserInPermissionGroup :one
-SELECT userid FROM pgmembership pgme, pgmapping pgma WHERE
-pgme.userid = $1 AND pgma.projectid = $2 AND pgma.pgroupid = pgme.pgroupid;
-
--- name: GetTeamFromPGroup :one
-SELECT teamid FROM permissiongroup WHERE
-pgroupid = $1 LIMIT 1;

@@ -103,7 +103,6 @@ func main() {
 		// remove mapping
 		r.Post("/pgroup/add", AddUserToPG)
 		r.Post("/pgroup/remove", RemoveUserFromPG)
-		// removem member
 		// delete permission group
 	})
 
