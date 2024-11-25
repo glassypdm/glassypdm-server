@@ -42,14 +42,14 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	var request CommitRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		PrintError(w, "bad json")
+		WriteError(w, "bad json")
 		return
 	}
 
 	// check permission
 	projectPermission := getProjectPermissionByID(userId, request.ProjectId)
 	if projectPermission < 2 {
-		PrintError(w, "no permission")
+		WriteError(w, "no permission")
 		return
 	}
 	start := time.Now()
@@ -57,7 +57,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	tx, err := db_pool.Begin(ctx)
 	if err != nil {
 		log.Error("couldn't create transaction", "error", err)
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 	defer tx.Rollback(ctx)
@@ -70,7 +70,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		Numfiles:  int32(len(request.Files))})
 	if err != nil {
 		log.Error("db couldn't create commit", "db err", err)
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 
@@ -108,7 +108,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 				continue
 			} else {
 				log.Error("now-handled error inserting file revision", "db", err)
-				PrintError(w, "db error")
+				WriteError(w, "db error")
 				return
 			}
 		}
@@ -131,7 +131,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	output_bytes, _ := json.Marshal(output)
 	durationTwo := time.Since(start)
 	log.Info("transaction took " + durationTwo.String())
-	PrintSuccess(w, string(output_bytes))
+	WriteSuccess(w, string(output_bytes))
 }
 
 type CreateCommitOutput struct {
@@ -171,23 +171,23 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	project := chi.URLParam(r, "project-id")
 	pid, err := strconv.Atoi(project)
 	if err != nil {
-		PrintError(w, "incorrect format")
+		WriteError(w, "incorrect format")
 		return
 	}
 
 	if r.URL.Query().Get("offset") == "" {
-		PrintError(w, "incorrect format")
+		WriteError(w, "incorrect format")
 		return
 	}
 	offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
 	if err != nil {
-		PrintError(w, "incorrect format")
+		WriteError(w, "incorrect format")
 		return
 	}
 
 	// check if user has read permission for project
 	if getProjectPermissionByID(userId, pid) < 1 {
-		PrintError(w, "no permission")
+		WriteError(w, "no permission")
 		return
 	}
 
@@ -195,14 +195,14 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	CommitDto, err := queries.ListProjectCommits(ctx, sqlcgen.ListProjectCommitsParams{Projectid: int32(pid), Offset: int32(offset)})
 	if err != nil {
 		log.Error("db error", "sql", err.Error())
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 	// get total number
 	NumCommits, err := queries.CountProjectCommits(ctx, int32(pid))
 	if err != nil {
 		log.Error("db error", "sql", err.Error())
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 
@@ -212,7 +212,7 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 		usr, err := user.Get(ctx, Commit.Userid)
 		name := ""
 		if err != nil {
-			PrintError(w, "invalid user id")
+			WriteError(w, "invalid user id")
 			return
 		}
 		name = *usr.FirstName + " " + *usr.LastName
@@ -230,10 +230,10 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	output := CommitList{NumCommit: int(NumCommits), Commits: CommitDescriptions}
 	JSONList, err := json.Marshal(output)
 	if err != nil {
-		PrintError(w, "json error")
+		WriteError(w, "json error")
 		return
 	}
-	PrintSuccess(w, string(JSONList))
+	WriteSuccess(w, string(JSONList))
 }
 
 func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
@@ -252,14 +252,14 @@ func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
 	CommitId, err := strconv.Atoi(CommitIdStr)
 	if err != nil {
 		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
-		PrintError(w, "incorrect format")
+		WriteError(w, "incorrect format")
 		return
 	}
 
 	// get commit information
 	CommitInfoDto, err := queries.GetCommitInfo(ctx, int32(CommitId))
 	if err != nil {
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		log.Warn("encountered db error when getting commit info", "db", err, "commit-id", CommitId)
 		return
 	}
@@ -267,14 +267,14 @@ func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
 	// check permission - needs read permission minimum
 	if getProjectPermissionByID(claims.Subject, int(CommitInfoDto.Projectid)) < 1 {
 		log.Warn("insufficient permission", "user", claims.Subject, "projectId", CommitInfoDto.Projectid)
-		PrintError(w, "insufficient permission")
+		WriteError(w, "insufficient permission")
 		return
 	}
 
 	// get file revisions
 	Files, err := queries.GetFileRevisionsByCommitId(ctx, int32(CommitId))
 	if err != nil {
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		log.Warn("encountered db error when getting file revisions for commit", "db", err, "commit-id", CommitId)
 		return
 	}
@@ -285,7 +285,7 @@ func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.Get(ctx, CommitInfoDto.Userid)
 	name := ""
 	if err != nil {
-		PrintError(w, "invalid user id")
+		WriteError(w, "invalid user id")
 		return
 	}
 	name = *usr.FirstName + " " + *usr.LastName
@@ -301,10 +301,10 @@ func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
 
 	OutputJson, err := json.Marshal(Output)
 	if err != nil {
-		PrintError(w, "json error")
+		WriteError(w, "json error")
 		return
 	}
-	PrintSuccess(w, string(OutputJson))
+	WriteSuccess(w, string(OutputJson))
 }
 
 type CommitInformation struct {

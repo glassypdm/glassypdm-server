@@ -49,13 +49,13 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 
 	if os.Getenv("OPEN_TEAMS") == "0" {
 		// TODO ???
-		PrintDefaultSuccess(w, "disabled")
+		WriteDefaultSuccess(w, "disabled")
 		return
 	}
 	var request TeamCreationRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		PrintError(w, "json bad")
+		WriteError(w, "json bad")
 		return
 	}
 
@@ -64,11 +64,11 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			log.Warn("team name exists already", "requested name", request.Name)
-			PrintError(w, "team name exists already")
+			WriteError(w, "team name exists already")
 			return
 		}
 		log.Error("unhandled db error when creating team", "db", err)
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 
@@ -77,7 +77,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 		log.Error("couldn't insert owner permission", "err", err.Error(), "teamID", id, "userID", claims.Subject)
 	}
 
-	PrintDefaultSuccess(w, "team created")
+	WriteDefaultSuccess(w, "team created")
 }
 
 // output meaning
@@ -172,7 +172,7 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	var req PermissionRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		PrintError(w, "incorrect format")
+		WriteError(w, "incorrect format")
 		return
 	}
 	user := req.Email // the user to set a permission for
@@ -182,23 +182,23 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	setterPermission := checkPermissionByID(teamId, setterId)
 	userPermisssion := checkPermissionByEmail(user, teamId)
 	if userPermisssion == -2 {
-		PrintError(w, "user does not exist")
+		WriteError(w, "user does not exist")
 		return
 	} else if userPermisssion == -1 || setterPermission == -1 {
-		PrintError(w, "generic error")
+		WriteError(w, "generic error")
 		return
 	}
 
 	// check if user has permission to set permissions
 	// if person to set has a higher permission level than user, error out, or if proposed permission is higher
 	if setterPermission < 2 {
-		PrintError(w, "insufficient permission")
+		WriteError(w, "insufficient permission")
 		return
 	} else if userPermisssion >= setterPermission {
-		PrintError(w, "invalid permission")
+		WriteError(w, "invalid permission")
 		return
 	} else if proposedPermission >= setterPermission {
-		PrintError(w, "insufficient permission")
+		WriteError(w, "insufficient permission")
 		return
 	}
 	userID := getUserIDByEmail(user)
@@ -213,10 +213,10 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		log.Error("couldn't edit team permission", "userid", userID, "team", teamId, "level", proposedPermission, "error", err.Error())
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
-	PrintDefaultSuccess(w, "valid")
+	WriteDefaultSuccess(w, "valid")
 }
 
 func GetTeamForUser(w http.ResponseWriter, r *http.Request) {
@@ -231,7 +231,7 @@ func GetTeamForUser(w http.ResponseWriter, r *http.Request) {
 	Teams, err := queries.FindUserTeams(ctx, claims.Subject)
 	if err != nil {
 		log.Error("couldn't get user's teams", "user", claims.Subject, "err", err.Error())
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 
@@ -247,10 +247,10 @@ func GetTeamForUser(w http.ResponseWriter, r *http.Request) {
 
 	OutputBytes, err := json.Marshal(Output)
 	if err != nil {
-		PrintError(w, "couldn't create json")
+		WriteError(w, "couldn't create json")
 		return
 	}
-	PrintSuccess(w, string(OutputBytes))
+	WriteSuccess(w, string(OutputBytes))
 }
 
 type GetTeamForUserResponse struct {
@@ -270,13 +270,13 @@ func getTeamInformationByName(w http.ResponseWriter, r *http.Request) {
 	teamName := chi.URLParam(r, "team-name")
 
 	if teamName == "" {
-		PrintError(w, "incorrect format")
+		WriteError(w, "incorrect format")
 		return
 	}
 
 	teamid, err := queries.GetTeamFromName(ctx, teamName)
 	if err != nil {
-		PrintError(w, "team not found")
+		WriteError(w, "team not found")
 		return
 	}
 
@@ -379,7 +379,7 @@ func QueryTeamInformation(w http.ResponseWriter, teamId int, userId string) {
 		Members:  members,
 	}
 	output_bytes, _ := json.Marshal(output)
-	PrintSuccess(w, string(output_bytes))
+	WriteSuccess(w, string(output_bytes))
 }
 
 type TeamInformation struct {
@@ -438,5 +438,5 @@ func GetBasicTeamInfo(w http.ResponseWriter, r *http.Request) {
 		Members:  []Member{},
 	}
 	output_bytes, _ := json.Marshal(output)
-	PrintSuccess(w, string(output_bytes))
+	WriteSuccess(w, string(output_bytes))
 }

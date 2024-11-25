@@ -115,7 +115,7 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	var request ProjectCreationRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		PrintError(w, "incorrect format")
+		WriteError(w, "incorrect format")
 		return
 	}
 
@@ -123,30 +123,30 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int32(request.TeamID), Userid: claims.Subject})
 	if err != nil {
 		log.Error("couldn't get team permission", "team", request.TeamID, "user", claims.Subject)
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 	level := int(permission)
 	if level < 2 {
 		log.Error("insufficient permission for creating project", "team", request.TeamID, "user", claims.Subject)
-		PrintError(w, "insufficient permission")
+		WriteError(w, "insufficient permission")
 		return
 	}
 
 	pid, err := queries.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int32(request.TeamID), Title: request.Name})
 	if err != nil {
 		log.Error("insufficient permission for creating project", "db error", err)
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 	_, err = queries.InsertCommit(ctx, sqlcgen.InsertCommitParams{Projectid: pid, Userid: claims.Subject, Comment: "Initial commit", Numfiles: 0})
 	if err != nil {
 		log.Error("couldn't insert commit", "db error", err)
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 	log.Info("succesfully created project", "project ID", pid, "name", request.Name)
-	PrintDefaultSuccess(w, "project created")
+	WriteDefaultSuccess(w, "project created")
 }
 
 func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
@@ -158,13 +158,13 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("pid") == "" {
-		PrintError(w, "incorrect format")
+		WriteError(w, "incorrect format")
 		return
 	}
 
 	pid, err := strconv.Atoi(r.URL.Query().Get("pid"))
 	if err != nil {
-		PrintError(w, "incorrect format")
+		WriteError(w, "incorrect format")
 		return
 	}
 
@@ -280,12 +280,12 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	projectIdStr := chi.URLParam(r, "project-id")
 	projectId, err := strconv.Atoi(projectIdStr)
 	if err != nil {
-		PrintError(w, "incorrect format")
+		WriteError(w, "incorrect format")
 	}
 
 	if getProjectPermissionByID(claims.Subject, projectId) < 1 {
 		log.Warn("insufficient permission", "user", claims.Subject, "projectId", projectId)
-		PrintError(w, "insufficient permission")
+		WriteError(w, "insufficient permission")
 		return
 	}
 
@@ -293,7 +293,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	output, err := queries.GetProjectState(ctx, int32(projectId))
 	if err != nil {
 		log.Error("db error", "project", projectId, "err", err.Error())
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 	if len(output) == 0 {
@@ -302,5 +302,5 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 
 	OutputBytes, _ := json.Marshal(output)
 
-	PrintSuccess(w, string(OutputBytes))
+	WriteSuccess(w, string(OutputBytes))
 }

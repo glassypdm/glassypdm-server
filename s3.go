@@ -45,42 +45,42 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	// note: this size here is just for parsing and not the actual size limit of the file
 	// TODO is this note correct?
 	if err := r.ParseMultipartForm(400 * (1 << 20)); err != nil { // 400 * (1 << 20) is 400 MB
-		PrintError(w, "multipart form parsing failed")
+		WriteError(w, "multipart form parsing failed")
 		return
 	}
 
 	UserId := r.FormValue("user_id")
 	if UserId == "" {
-		PrintError(w, "form format incorrect")
+		WriteError(w, "form format incorrect")
 		return
 	}
 
 	// ensure user can upload to at least one project/team
 	if !canUserUpload(UserId) {
-		PrintError(w, "no upload permission")
+		WriteError(w, "no upload permission")
 		return
 	}
 
 	FileHash := r.FormValue("file_hash")
 	if FileHash == "" {
-		PrintError(w, "form format incorrect")
+		WriteError(w, "form format incorrect")
 		return
 	}
 
 	ChunkIndex := r.FormValue("chunk_index")
 	if ChunkIndex == "" {
-		PrintError(w, "form format incorrect")
+		WriteError(w, "form format incorrect")
 		return
 	}
 	NumChunks := r.FormValue("num_chunks")
 	if NumChunks == "" {
-		PrintError(w, "form format incorrect")
+		WriteError(w, "form format incorrect")
 		return
 	}
 
 	file, header, err := r.FormFile("chunk")
 	if err != nil {
-		PrintError(w, "cannot read file")
+		WriteError(w, "cannot read file")
 		return
 	}
 	size := header.Size
@@ -88,20 +88,20 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	cidx, err1 := strconv.ParseInt(ChunkIndex, 10, 32)
 	numchunks, err2 := strconv.ParseInt(NumChunks, 10, 32)
 	if err1 != nil || err2 != nil {
-		PrintError(w, "form format incorrect")
+		WriteError(w, "form format incorrect")
 		return
 	}
 
 	hashUser := r.FormValue("block_hash")
 	if hashUser == "" {
-		PrintError(w, "form format incorrect")
+		WriteError(w, "form format incorrect")
 		return
 	}
 
 	// set position back to start.
 	// TODO do we need this?
 	if _, err := file.Seek(0, 0); err != nil {
-		PrintError(w, "error reading file")
+		WriteError(w, "error reading file")
 		log.Error("couldn't read file", "err", err.Error())
 		return
 	}
@@ -109,7 +109,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	s3, err := generateS3Client()
 	if err != nil {
 		log.Error("couldn't connect to s3", "err", err.Error())
-		PrintError(w, "issue connecting to s3")
+		WriteError(w, "issue connecting to s3")
 		return
 	}
 	hasher := blake3.New(32, nil)
@@ -138,12 +138,12 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 					// chunk exists already
 				} else {
 					log.Error("couldn't insert chunk", "db", err.Error())
-					PrintError(w, "db error")
+					WriteError(w, "db error")
 					return
 				}
 			}
 
-			PrintDefaultSuccess(w, "duplicate found")
+			WriteDefaultSuccess(w, "duplicate found")
 			return
 		}
 	}
@@ -159,7 +159,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error("couldn't connect to s3", "s3", err.Error())
-		PrintError(w, "issue connecting to s3")
+		WriteError(w, "issue connecting to s3")
 		return
 	}
 
@@ -168,7 +168,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	hashCalc := hasher.Sum(nil)
 	if hashUser != hex.EncodeToString(hashCalc) {
 		log.Error("hash doesn't match", "user", hashUser, "calculated", hashCalc)
-		PrintError(w, "hash doesn't match")
+		WriteError(w, "hash doesn't match")
 		s3.RemoveObject(
 			ctx,
 			os.Getenv("S3_BUCKETNAME"),
@@ -192,12 +192,12 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 			log.Warn("duplicate found") // TODO downgrade to ifno
 		} else {
 			log.Error("couldn't insert chunk", "sql", err.Error())
-			PrintError(w, "db error")
+			WriteError(w, "db error")
 			return
 		}
 
 	}
-	PrintDefaultSuccess(w, "upload successful")
+	WriteDefaultSuccess(w, "upload successful")
 }
 
 type FileChunk struct {
@@ -226,20 +226,20 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	var request DownloadRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		PrintError(w, "bad json")
+		WriteError(w, "bad json")
 		return
 	}
 
 	// check permission level
 	if getProjectPermissionByID(request.UserId, request.ProjectId) < 1 {
-		PrintError(w, "no permission")
+		WriteError(w, "no permission")
 		return
 	}
 
 	s3, err := generateS3Client()
 	if err != nil {
 		log.Error("couldn't connect to s3", "s3", err.Error())
-		PrintError(w, "issue connecting to s3")
+		WriteError(w, "issue connecting to s3")
 		return
 	}
 
@@ -252,7 +252,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 		})
 	if err != nil {
 		log.Error("couldn't get filehash", "projectID", request.ProjectId, "filepath", request.Path, "db err", err.Error())
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 
@@ -260,7 +260,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	chunksDto, err := queries.GetFileChunks(ctx, filehash)
 	if err != nil {
 		log.Error("coudln't get file chunks", "filehash", filehash, "db err", err.Error())
-		PrintError(w, "db error")
+		WriteError(w, "db error")
 		return
 	}
 
@@ -271,7 +271,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 		url, err := s3.PresignedGetObject(ctx, os.Getenv("S3_BUCKETNAME"), chunk.Blockhash, time.Second*60*60*48, reqParams)
 		if err != nil {
 			log.Error("couldn't get presigned GET link", "s3", err.Error())
-			PrintError(w, "s3 error")
+			WriteError(w, "s3 error")
 			return
 		}
 		chunks = append(chunks,
@@ -291,5 +291,5 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output_str, _ := json.Marshal(output)
-	PrintSuccess(w, string(output_str))
+	WriteSuccess(w, string(output_str))
 }

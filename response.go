@@ -17,7 +17,7 @@ func PrintResponse(w http.ResponseWriter, response string, output string) {
 	}`, response, output)
 }
 
-func PrintError(w http.ResponseWriter, err string) {
+func WriteError(w http.ResponseWriter, err string) {
 	fmt.Fprintf(w, `{
 			"response": "error",
 			"error": "%s"
@@ -25,7 +25,7 @@ func PrintError(w http.ResponseWriter, err string) {
 		err)
 }
 
-func PrintSuccess(w http.ResponseWriter, output string) {
+func WriteSuccess(w http.ResponseWriter, output string) {
 	fmt.Fprintf(w, `{
 			"response": "success",
 			"body": %v
@@ -33,9 +33,9 @@ func PrintSuccess(w http.ResponseWriter, output string) {
 		output)
 }
 
-func PrintDefaultSuccess(w http.ResponseWriter, msg string) {
+func WriteDefaultSuccess(w http.ResponseWriter, msg string) {
 	output := DefaultSuccessOutput{Message: msg}
 	output_bytes, _ := json.Marshal(output)
 
-	PrintSuccess(w, string(output_bytes))
+	WriteSuccess(w, string(output_bytes))
 }
