@@ -338,12 +338,14 @@ func QueryTeamInformation(w http.ResponseWriter, teamId int, userId string) {
 		return
 	}
 
-	clerklist, err := user.List(ctx, &user.ListParams{})
+	// TODO smarter value?
+	clerklist, err := user.List(ctx, &user.ListParams{ListParams: clerk.ListParams{Limit: clerk.Int64(500)}})
 	if err != nil {
 		WriteError(w, "clerk error")
 		return
 	}
 	userlist := clerklist.Users
+	log.Info("total users in list:", "count", clerklist.TotalCount)
 
 	var members []Member
 	for _, member := range memberdto {
@@ -378,7 +380,7 @@ func QueryTeamInformation(w http.ResponseWriter, teamId int, userId string) {
 		m.Email = ""
 		members = append(members, m)
 	}
-	log.Info("found members for team", len(members))
+	log.Info("found members for team", "member count", len(members))
 
 	output := TeamInformation{
 		TeamName: name,

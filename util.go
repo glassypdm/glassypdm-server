@@ -121,6 +121,7 @@ func GetUserByID(userId string) (User, bool) {
 func FindUserInList(userId string, list []*clerk.User) (User, bool) {
 	var output User
 	for _, user := range list {
+		//log.Info("searching in list:", "supplied", userId, "current", user.ID)
 		if userId == user.ID {
 			output.UserId = userId
 			output.Name = *user.FirstName + " " + *user.LastName
@@ -128,5 +129,6 @@ func FindUserInList(userId string, list []*clerk.User) (User, bool) {
 			return output, true
 		}
 	}
+	log.Error("couldn't find user in list", "id", userId)
 	return output, false
 }
