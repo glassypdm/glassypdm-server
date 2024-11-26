@@ -337,6 +337,14 @@ func QueryTeamInformation(w http.ResponseWriter, teamId int, userId string) {
 		fmt.Fprintf(w, `{ "response": "db error" }`)
 		return
 	}
+
+	clerklist, err := user.List(ctx, &user.ListParams{})
+	if err != nil {
+		WriteError(w, "clerk error")
+		return
+	}
+	userlist := clerklist.Users
+
 	var members []Member
 	for _, member := range memberdto {
 		var m Member
@@ -352,12 +360,12 @@ func QueryTeamInformation(w http.ResponseWriter, teamId int, userId string) {
 			m.Role = "Undefined"
 		}
 
-		usr, err := user.Get(ctx, member.Userid)
-		if err != nil {
-			log.Warn("userid not found in clerk", "user", member.Userid)
-			continue
+		hehe, res := FindUserInList(member.Userid, userlist)
+		if res {
+			m.Name = hehe.Name
+		} else {
+			m.Name = ""
 		}
-		m.Name = *usr.FirstName + " " + *usr.LastName
 		/* POSTPONED  TODO
 		email, err := emailaddress.Get(ctx, *usr.PrimaryEmailAddressID)
 		if err != nil {

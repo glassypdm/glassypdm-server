@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
+	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	_ "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -115,4 +116,17 @@ func GetUserByID(userId string) (User, bool) {
 	output.EmailId = *usr.PrimaryEmailAddressID
 
 	return output, true
+}
+
+func FindUserInList(userId string, list []*clerk.User) (User, bool) {
+	var output User
+	for _, user := range list {
+		if userId == user.ID {
+			output.UserId = userId
+			output.Name = *user.FirstName + " " + *user.LastName
+			output.EmailId = *user.PrimaryEmailAddressID
+			return output, true
+		}
+	}
+	return output, false
 }
