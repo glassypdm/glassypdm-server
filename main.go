@@ -9,7 +9,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/jwtauth/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joshtenorio/glassypdm-server/internal/project"
 	"github.com/joshtenorio/glassypdm-server/sqlcgen"
 
 	"github.com/joho/godotenv"
@@ -77,6 +79,10 @@ func main() {
 	// TODO protect them
 	r.Post("/store/download", GetS3Download)
 	r.Post("/store/request", HandleUpload)
+	r.Group(func(r chi.Router) {
+		r.Use(jwtauth.Verifier(project.TokenAuth))
+		r.Use(jwtauth.Authenticator(project.TokenAuth))
+	})
 
 	// Clerk-protected routes
 	r.Group(func(r chi.Router) {
@@ -89,6 +95,7 @@ func main() {
 		r.Post("/project", CreateProject)
 		r.Get("/project/info", GetProjectInfo)
 		r.Get("/project/user", GetProjectsForUser)
+		//r.Get("/project/{project-id}/store", project.RouteStoreJWTRequest)
 		r.Get("/project/status/by-id/{project-id}", GetProjectState)
 		r.Post("/team", CreateTeam)
 		r.Get("/team", GetTeamForUser)

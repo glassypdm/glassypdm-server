@@ -55,12 +55,6 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ensure user can upload to at least one project/team
-	if !canUserUpload(UserId) {
-		WriteError(w, "no upload permission")
-		return
-	}
-
 	FileHash := r.FormValue("file_hash")
 	if FileHash == "" {
 		WriteError(w, "form format incorrect")
@@ -98,8 +92,13 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ensure user can upload to at least one project/team
+	if !canUserUpload(UserId) {
+		WriteError(w, "no upload permission")
+		return
+	}
+
 	// set position back to start.
-	// TODO do we need this?
 	if _, err := file.Seek(0, 0); err != nil {
 		WriteError(w, "error reading file")
 		log.Error("couldn't read file", "err", err.Error())
