@@ -241,7 +241,7 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"access": "unauthorized"}`))
 		return
 	}
-	user := claims.Subject
+	caller := claims.Subject
 	hehe := r.URL.Query().Get("pgroup_id")
 	pgroup, err := strconv.Atoi(hehe)
 	if err != nil {
@@ -257,9 +257,9 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, "db error")
 		return
 	}
-	level := checkPermissionByID(int(team), user)
+	level := checkPermissionByID(int(team), caller)
 	if level <= 0 {
-		log.Debug("user's permission was insufficient", "user", user, "level", level)
+		log.Debug("user's permission was insufficient", "user", caller, "level", level)
 		WriteError(w, "insufficient permission")
 		return
 	}
@@ -307,9 +307,16 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 		output.PGroupProjects = append(output.PGroupProjects,
 			Project{Id: int(project.Projectid), Name: project.Title, Team: ""})
 	}
-
+	// TODO smarter value?
+	clerklist, err := user.List(ctx, &user.ListParams{ListParams: clerk.ListParams{Limit: clerk.Int64(500)}})
+	if err != nil {
+		WriteError(w, "clerk error")
+		return
+	}
+	userlist := clerklist.Users
+	log.Info("total users in list:", "count", clerklist.TotalCount)
 	for _, user := range TeamMembership {
-		usr, err := GetUserByID(user.Userid)
+		usr, err := FindUserInList(user.Userid, userlist) //GetUserByID(user.Userid)
 		if !err {
 			log.Warn("couldn't find user", user.Userid)
 			continue
@@ -317,8 +324,8 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 		output.TeamMembership = append(output.TeamMembership, usr)
 	}
 
-	for _, user := range pgMembership {
-		usr, err := GetUserByID(user)
+	for _, boi := range pgMembership {
+		usr, err := FindUserInList(boi, userlist)
 		if !err {
 			log.Warn("couldn't find user", usr)
 			continue
