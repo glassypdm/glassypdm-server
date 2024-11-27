@@ -382,18 +382,26 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 		output.TeamProjects = append(output.TeamProjects, Project{Id: int(projectDto.Projectid), Name: projectDto.Title})
 	}
 
+	// TODO smarter value?
+	clerklist, err := user.List(ctx, &user.ListParams{ListParams: clerk.ListParams{Limit: clerk.Int64(500)}})
+	if err != nil {
+		WriteError(w, "clerk error")
+		return
+	}
+	userlist := clerklist.Users
+
 	users, err := queries.GetTeamMembership(ctx, int32(teamId))
 	if err != nil {
 		WriteError(w, "db error")
 		return
 	}
 	for _, UserDto := range users {
-		usr, err := user.Get(ctx, UserDto.Userid)
-		if err != nil {
+		user, res := FindUserInList(UserDto.Userid, userlist)
+		if !res {
 			log.Warn("userid not found in clerk", "user", UserDto.Userid)
 			continue
 		}
-		output.TeamMembership = append(output.TeamMembership, User{UserId: UserDto.Userid, Name: *usr.FirstName + " " + *usr.LastName, EmailId: ""})
+		output.TeamMembership = append(output.TeamMembership, User{UserId: UserDto.Userid, Name: user.Name, EmailId: ""})
 	}
 	groups, err := queries.ListPermissionGroupForTeam(ctx, int32(teamId))
 	if err != nil {
