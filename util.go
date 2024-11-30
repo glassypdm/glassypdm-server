@@ -11,8 +11,7 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	_ "github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joshtenorio/glassypdm-server/sqlcgen"
+	"github.com/joshtenorio/glassypdm-server/internal/dal"
 )
 
 func IsServerOpen() bool {
@@ -42,12 +41,6 @@ func getConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(data)
 }
 
-var queries sqlcgen.Queries
-var db_pool *pgxpool.Pool
-
-//go:embed schema.sql
-var ddl string
-
 func getUserIDByEmail(email string) string {
 	ctx := context.Background()
 	param := user.ListParams{EmailAddresses: []string{email}}
@@ -75,7 +68,7 @@ func canUserUpload(userId string) bool {
 
 	// check team permission
 	// TODO: ensure that a team has at least one project for this to be a valid check
-	teampermissions, err := queries.FindTeamPermissions(ctx, userId)
+	teampermissions, err := dal.Queries.FindTeamPermissions(ctx, userId)
 	if err != nil {
 		return false
 	}
@@ -86,7 +79,7 @@ func canUserUpload(userId string) bool {
 	}
 
 	// check permission groups
-	groups, err := queries.FindUserInPermissionGroup(ctx, userId)
+	groups, err := dal.Queries.FindUserInPermissionGroup(ctx, userId)
 	if err != nil {
 		return false
 	}

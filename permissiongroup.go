@@ -12,7 +12,8 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/go-chi/chi/v5"
-	"github.com/joshtenorio/glassypdm-server/sqlcgen"
+	"github.com/joshtenorio/glassypdm-server/internal/dal"
+	"github.com/joshtenorio/glassypdm-server/internal/sqlcgen"
 )
 
 type PGCreationRequest struct {
@@ -44,7 +45,7 @@ func CreatePermissionGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// attempt to create permission group
-	err = queries.CreatePermissionGroup(ctx,
+	err = dal.Queries.CreatePermissionGroup(ctx,
 		sqlcgen.CreatePermissionGroupParams{Teamid: int32(request.TeamID), Name: request.PGroupName})
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
@@ -79,7 +80,7 @@ func CreatePGMapping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := queries.GetTeamFromProject(ctx, int32(request.ProjectID))
+	team, err := dal.Queries.GetTeamFromProject(ctx, int32(request.ProjectID))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Error("db: team not found", "project", request.ProjectID)
@@ -96,7 +97,7 @@ func CreatePGMapping(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create mapping
-	err = queries.MapProjectToPermissionGroup(ctx,
+	err = dal.Queries.MapProjectToPermissionGroup(ctx,
 		sqlcgen.MapProjectToPermissionGroupParams{Projectid: int32(request.ProjectID), Pgroupid: int32(request.PGroupID)})
 	if err != nil {
 		// TODO if foreign key constraint, return different error
@@ -122,7 +123,7 @@ func GetPermissionGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	groups, err := queries.ListPermissionGroupForTeam(ctx, int32(teamId))
+	groups, err := dal.Queries.ListPermissionGroupForTeam(ctx, int32(teamId))
 	if err != nil {
 		WriteError(w, "db error")
 		return
@@ -160,7 +161,7 @@ func RemoveUserFromPG(w http.ResponseWriter, r *http.Request) {
 
 	// check if user has permission to manage permission groups
 	// i.e. is a manager
-	team, err := queries.GetTeamFromPGroup(ctx, int32(request.PGroupID))
+	team, err := dal.Queries.GetTeamFromPGroup(ctx, int32(request.PGroupID))
 	if err != nil {
 		WriteError(w, "db error")
 		return
@@ -171,7 +172,7 @@ func RemoveUserFromPG(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = queries.RemoveMemberFromPermissionGroup(ctx,
+	err = dal.Queries.RemoveMemberFromPermissionGroup(ctx,
 		sqlcgen.RemoveMemberFromPermissionGroupParams{
 			Userid:   request.Member,
 			Pgroupid: int32(request.PGroupID),
@@ -200,7 +201,7 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 
 	// check if user has permission to manage permission groups
 	// i.e. is a manager
-	team, err := queries.GetTeamFromPGroup(ctx, int32(request.PGroupID))
+	team, err := dal.Queries.GetTeamFromPGroup(ctx, int32(request.PGroupID))
 	if err != nil {
 		// TODO if project doesnt exist return a different error
 		WriteError(w, "db error")
@@ -213,7 +214,7 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check if member is in team
-	_, err = queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: request.Member})
+	_, err = dal.Queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: request.Member})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			WriteError(w, "user not found in team")
@@ -224,7 +225,7 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// at this point member is in team, so add them to the permission group
-	err = queries.AddMemberToPermissionGroup(ctx,
+	err = dal.Queries.AddMemberToPermissionGroup(ctx,
 		sqlcgen.AddMemberToPermissionGroupParams{Userid: request.Member, Pgroupid: int32(request.PGroupID)})
 	if err != nil {
 		WriteError(w, "db error")
@@ -251,7 +252,7 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// make sure user has permission to get information about the permission group
-	team, err := queries.GetTeamFromPGroup(ctx, int32(pgroup))
+	team, err := dal.Queries.GetTeamFromPGroup(ctx, int32(pgroup))
 	if err != nil {
 		log.Error("error fetching team from permission group", "err", err.Error())
 		WriteError(w, "db error")
@@ -265,28 +266,28 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// fetch projects for team
-	TeamProjects, err := queries.FindTeamProjects(ctx, team)
+	TeamProjects, err := dal.Queries.FindTeamProjects(ctx, team)
 	if err != nil {
 		WriteError(w, "db error")
 		return
 	}
 
 	// fetch projects for permission group
-	pgProjects, err := queries.GetPermissionGroupMapping(ctx, int32(pgroup))
+	pgProjects, err := dal.Queries.GetPermissionGroupMapping(ctx, int32(pgroup))
 	if err != nil {
 		WriteError(w, "db error")
 		return
 	}
 
 	// fetch membership for permission group
-	pgMembership, err := queries.ListPermissionGroupMembership(ctx, int32(pgroup))
+	pgMembership, err := dal.Queries.ListPermissionGroupMembership(ctx, int32(pgroup))
 	if err != nil {
 		WriteError(w, "db error")
 		return
 	}
 
 	// fetch membership for team
-	TeamMembership, err := queries.GetTeamMembership(ctx, team)
+	TeamMembership, err := dal.Queries.GetTeamMembership(ctx, team)
 	if err != nil {
 		WriteError(w, "db error")
 		return
@@ -373,7 +374,7 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 
 	var output PermissionGroupTeamInfo
 
-	projects, err := queries.FindTeamProjects(ctx, int32(teamId))
+	projects, err := dal.Queries.FindTeamProjects(ctx, int32(teamId))
 	if err != nil {
 		WriteError(w, "db error")
 		return
@@ -390,7 +391,7 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	userlist := clerklist.Users
 
-	users, err := queries.GetTeamMembership(ctx, int32(teamId))
+	users, err := dal.Queries.GetTeamMembership(ctx, int32(teamId))
 	if err != nil {
 		WriteError(w, "db error")
 		return
@@ -403,7 +404,7 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 		}
 		output.TeamMembership = append(output.TeamMembership, User{UserId: UserDto.Userid, Name: user.Name, EmailId: ""})
 	}
-	groups, err := queries.ListPermissionGroupForTeam(ctx, int32(teamId))
+	groups, err := dal.Queries.ListPermissionGroupForTeam(ctx, int32(teamId))
 	if err != nil {
 		WriteError(w, "db error")
 		return
@@ -412,7 +413,7 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 		var group PermissionGroup
 		group.PGroupId = int(GroupDto.Pgroupid)
 		group.PGroupName = GroupDto.Name
-		mapping, err := queries.GetPermissionGroupMapping(ctx, int32(group.PGroupId))
+		mapping, err := dal.Queries.GetPermissionGroupMapping(ctx, int32(group.PGroupId))
 		if err != nil {
 			log.Warn("db error while querying permission group mapping", "id", group.PGroupId)
 			continue
@@ -421,7 +422,7 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 			group.PGroupProjects = append(group.PGroupProjects, Project{Id: int(MapDto.Projectid), Team: "", Name: MapDto.Title})
 		}
 
-		members, err := queries.ListPermissionGroupMembership(ctx, int32(group.PGroupId))
+		members, err := dal.Queries.ListPermissionGroupMembership(ctx, int32(group.PGroupId))
 		if err != nil {
 			log.Warn("db error while querying permission group membership", "id", group.PGroupId)
 			continue

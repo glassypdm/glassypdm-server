@@ -15,7 +15,8 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/joshtenorio/glassypdm-server/sqlcgen"
+	"github.com/joshtenorio/glassypdm-server/internal/dal"
+	"github.com/joshtenorio/glassypdm-server/internal/sqlcgen"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"lukechampine.com/blake3"
@@ -115,7 +116,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	tee := io.TeeReader(file, hasher)
 
 	// check if object exists in S3 already
-	err = queries.InsertHash(ctx,
+	err = dal.Queries.InsertHash(ctx,
 		sqlcgen.InsertHashParams{Blockhash: hashUser, S3key: hashUser, Blocksize: int32(size)})
 	if err != nil {
 		log.Error("couldn't insert hash", "db", err.Error())
@@ -124,7 +125,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 			log.Warn("found duplicate hash", "hash", hashUser)
 
 			// insert the chunk because we need to anyways
-			err = queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
+			err = dal.Queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
 				Chunkindex: int32(cidx),
 				Numchunks:  int32(numchunks),
 				Filehash:   FileHash,
@@ -174,11 +175,11 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 			hashUser,
 			minio.RemoveObjectOptions{})
 
-		queries.RemoveHash(ctx, hashUser)
+		dal.Queries.RemoveHash(ctx, hashUser)
 		return
 	}
 
-	err = queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
+	err = dal.Queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
 		Chunkindex: int32(cidx),
 		Numchunks:  int32(numchunks),
 		Filehash:   FileHash,
@@ -243,7 +244,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get filehash from filepath+projectid
-	filehash, err := queries.GetFileHash(ctx,
+	filehash, err := dal.Queries.GetFileHash(ctx,
 		sqlcgen.GetFileHashParams{
 			Projectid: int32(request.ProjectId),
 			Path:      request.Path,
@@ -256,7 +257,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ping s3 for a presigned url
-	chunksDto, err := queries.GetFileChunks(ctx, filehash)
+	chunksDto, err := dal.Queries.GetFileChunks(ctx, filehash)
 	if err != nil {
 		log.Error("coudln't get file chunks", "filehash", filehash, "db err", err.Error())
 		WriteError(w, "db error")

@@ -13,7 +13,8 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/go-chi/chi/v5"
-	"github.com/joshtenorio/glassypdm-server/sqlcgen"
+	"github.com/joshtenorio/glassypdm-server/internal/dal"
+	"github.com/joshtenorio/glassypdm-server/internal/sqlcgen"
 )
 
 /*
@@ -54,14 +55,14 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	}
 	start := time.Now()
 
-	tx, err := db_pool.Begin(ctx)
+	tx, err := dal.DbPool.Begin(ctx)
 	if err != nil {
 		log.Error("couldn't create transaction", "error", err)
 		WriteError(w, "db error")
 		return
 	}
 	defer tx.Rollback(ctx)
-	qtx := queries.WithTx(tx)
+	qtx := dal.Queries.WithTx(tx)
 	// make commit, get new commitid
 	cid, err := qtx.InsertCommit(ctx, sqlcgen.InsertCommitParams{
 		Projectid: int32(request.ProjectId),
@@ -192,14 +193,14 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get commits
-	CommitDto, err := queries.ListProjectCommits(ctx, sqlcgen.ListProjectCommitsParams{Projectid: int32(pid), Offset: int32(offset)})
+	CommitDto, err := dal.Queries.ListProjectCommits(ctx, sqlcgen.ListProjectCommitsParams{Projectid: int32(pid), Offset: int32(offset)})
 	if err != nil {
 		log.Error("db error", "sql", err.Error())
 		WriteError(w, "db error")
 		return
 	}
 	// get total number
-	NumCommits, err := queries.CountProjectCommits(ctx, int32(pid))
+	NumCommits, err := dal.Queries.CountProjectCommits(ctx, int32(pid))
 	if err != nil {
 		log.Error("db error", "sql", err.Error())
 		WriteError(w, "db error")
@@ -257,7 +258,7 @@ func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get commit information
-	CommitInfoDto, err := queries.GetCommitInfo(ctx, int32(CommitId))
+	CommitInfoDto, err := dal.Queries.GetCommitInfo(ctx, int32(CommitId))
 	if err != nil {
 		WriteError(w, "db error")
 		log.Warn("encountered db error when getting commit info", "db", err, "commit-id", CommitId)
@@ -272,7 +273,7 @@ func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get file revisions
-	Files, err := queries.GetFileRevisionsByCommitId(ctx, int32(CommitId))
+	Files, err := dal.Queries.GetFileRevisionsByCommitId(ctx, int32(CommitId))
 	if err != nil {
 		WriteError(w, "db error")
 		log.Warn("encountered db error when getting file revisions for commit", "db", err, "commit-id", CommitId)

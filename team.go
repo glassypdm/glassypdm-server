@@ -13,7 +13,8 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/go-chi/chi/v5"
-	"github.com/joshtenorio/glassypdm-server/sqlcgen"
+	"github.com/joshtenorio/glassypdm-server/internal/dal"
+	"github.com/joshtenorio/glassypdm-server/internal/sqlcgen"
 )
 
 type TeamRole int
@@ -60,7 +61,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create team entry and add user as owner
-	id, err := queries.InsertTeam(ctx, request.Name)
+	id, err := dal.Queries.InsertTeam(ctx, request.Name)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			log.Warn("team name exists already", "requested name", request.Name)
@@ -72,7 +73,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Teamid: id, Userid: claims.Subject, Level: 3})
+	_, err = dal.Queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Teamid: id, Userid: claims.Subject, Level: 3})
 	if err != nil {
 		log.Error("couldn't insert owner permission", "err", err.Error(), "teamID", id, "userID", claims.Subject)
 	}
@@ -112,7 +113,7 @@ func checkPermissionByEmail(email string, teamid int) int {
 func checkPermissionByID(teamid int, userid string) int {
 	ctx := context.Background()
 
-	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int32(teamid), Userid: userid})
+	permission, err := dal.Queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int32(teamid), Userid: userid})
 	if err != nil {
 		log.Error("couldn't retrieve team permission", "team", teamid, "user", userid, "err", err.Error())
 		return 0
@@ -206,10 +207,10 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	// otherwise upsert teampermission
 	// TODO handle errors
 	if proposedPermission != -4 {
-		_, err = queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int32(teamId), Level: int32(proposedPermission)})
+		_, err = dal.Queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int32(teamId), Level: int32(proposedPermission)})
 
 	} else {
-		_, err = queries.DeleteTeamPermission(ctx, userID)
+		_, err = dal.Queries.DeleteTeamPermission(ctx, userID)
 	}
 	if err != nil {
 		log.Error("couldn't edit team permission", "userid", userID, "team", teamId, "level", proposedPermission, "error", err.Error())
@@ -228,7 +229,7 @@ func GetTeamForUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Teams, err := queries.FindUserTeams(ctx, claims.Subject)
+	Teams, err := dal.Queries.FindUserTeams(ctx, claims.Subject)
 	if err != nil {
 		log.Error("couldn't get user's teams", "user", claims.Subject, "err", err.Error())
 		WriteError(w, "db error")
@@ -274,7 +275,7 @@ func getTeamInformationByName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamid, err := queries.GetTeamFromName(ctx, teamName)
+	teamid, err := dal.Queries.GetTeamFromName(ctx, teamName)
 	if err != nil {
 		WriteError(w, "team not found")
 		return
@@ -305,7 +306,7 @@ func getTeamInformation(w http.ResponseWriter, r *http.Request) {
 func QueryTeamInformation(w http.ResponseWriter, teamId int, userId string) {
 	ctx := context.Background()
 	// check if team exists
-	name, err := queries.GetTeamName(ctx, int32(teamId))
+	name, err := dal.Queries.GetTeamName(ctx, int32(teamId))
 	if err != nil {
 		fmt.Fprintf(w, `{ "response": "team DNE" }`)
 		return
@@ -331,7 +332,7 @@ func QueryTeamInformation(w http.ResponseWriter, teamId int, userId string) {
 		levelStr = "Undefined"
 	}
 
-	memberdto, err := queries.GetTeamMembership(ctx, int32(teamId))
+	memberdto, err := dal.Queries.GetTeamMembership(ctx, int32(teamId))
 	if err != nil {
 
 		fmt.Fprintf(w, `{ "response": "db error" }`)
@@ -416,7 +417,7 @@ func GetBasicTeamInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check if team exists
-	name, err := queries.GetTeamName(ctx, int32(teamId))
+	name, err := dal.Queries.GetTeamName(ctx, int32(teamId))
 	if err != nil {
 		fmt.Fprintf(w, `{ "response": "team DNE" }`)
 		return
