@@ -20,9 +20,8 @@ func RequestStoreJWT(UserID string, ProjectID int, IsDownload bool) {
 	// in JWT, include userID, projectID, and intended action
 }
 
-func InitStoreJWT() {
-	// grab secret from dotenv
+func InitStoreJWT(secret string) {
 
 	// initialize tokenauth
-	TokenAuth = jwtauth.New("HS256", []byte("secret"), nil)
+	TokenAuth = jwtauth.New("HS256", []byte(secret), nil)
 }

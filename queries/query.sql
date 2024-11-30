@@ -158,3 +158,27 @@ WHERE
 SELECT frid as filerevision_id, path, frno as filerevision_number, changetype, filesize, commitid as commit_id, projectid as project_id
 FROM filerevision
 WHERE commitid = $1;
+
+-- name: RestoreProjectToCommit :exec
+INSERT INTO filerevision (commitid, projectid, path, filehash, changetype, numchunks, filesize)
+SELECT DISTINCT
+    CAST(sqlc.arg(new_commit) as integer) as commitid,
+    projectid,
+    path,
+    FIRST_VALUE(filehash) OVER (PARTITION BY path ORDER BY commitid) as filehash,
+    CASE
+        WHEN LAST_VALUE(changetype) OVER (PARTITION BY path ORDER BY commitid) = 3 THEN 1  -- If was deleted, add back
+        WHEN LAST_VALUE(changetype) OVER (PARTITION BY path ORDER BY commitid) = 1 THEN 3  -- If was added, delete
+        ELSE 2  -- Modified case
+    END as changetype,
+    FIRST_VALUE(numchunks) OVER (PARTITION BY path ORDER BY commitid) as numchunks,
+    FIRST_VALUE(filesize) OVER (PARTITION BY path ORDER BY commitid) as filesize
+FROM filerevision
+WHERE filerevision.commitid >= $1
+    AND filerevision.projectid = $2
+GROUP BY projectid, path, commitid, filehash, changetype, numchunks, filesize;
+
+-- name: CountFilesUpdatedSinceCommit :one
+SELECT COUNT(distinct path) FROM filerevision WHERE
+commitid >= $1 AND projectid = $2
+GROUP BY path;

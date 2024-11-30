@@ -47,7 +47,7 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check permission
-	projectPermission := getProjectPermissionByID(userId, request.ProjectId)
+	projectPermission := GetProjectPermissionByID(userId, request.ProjectId)
 	if projectPermission < 2 {
 		WriteError(w, "no permission")
 		return
@@ -186,7 +186,7 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check if user has read permission for project
-	if getProjectPermissionByID(userId, pid) < 1 {
+	if GetProjectPermissionByID(userId, pid) < 1 {
 		WriteError(w, "no permission")
 		return
 	}
@@ -265,7 +265,7 @@ func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check permission - needs read permission minimum
-	if getProjectPermissionByID(claims.Subject, int(CommitInfoDto.Projectid)) < 1 {
+	if GetProjectPermissionByID(claims.Subject, int(CommitInfoDto.Projectid)) < 1 {
 		log.Warn("insufficient permission", "user", claims.Subject, "projectId", CommitInfoDto.Projectid)
 		WriteError(w, "insufficient permission")
 		return

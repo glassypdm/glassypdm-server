@@ -228,7 +228,7 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 // 2 (found): write access
 // 3 (manager): manager, can add write access
 // 4 (owner): can set managers
-func getProjectPermissionByID(userId string, projectId int) int {
+func GetProjectPermissionByID(userId string, projectId int) int {
 	ctx := context.Background()
 
 	teamId, err := queries.GetTeamByProject(ctx, int32(projectId))
@@ -283,7 +283,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, "incorrect format")
 	}
 
-	if getProjectPermissionByID(claims.Subject, projectId) < 1 {
+	if GetProjectPermissionByID(claims.Subject, projectId) < 1 {
 		log.Warn("insufficient permission", "user", claims.Subject, "projectId", projectId)
 		WriteError(w, "insufficient permission")
 		return
@@ -303,4 +303,81 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	OutputBytes, _ := json.Marshal(output)
 
 	WriteSuccess(w, string(OutputBytes))
+}
+
+type RestoreProjectRequest struct {
+	CommitId  int `json:"commit_id"`  // commit id to restore project to
+	ProjectId int `json:"project_id"` // project id
+}
+
+func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	var request RestoreProjectRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		WriteError(w, "bad json")
+		return
+	}
+
+	// verify user can upload to project
+	// TODO update this to be team managers only
+	// check permission
+	userId := claims.Subject
+	projectPermission := GetProjectPermissionByID(userId, request.ProjectId)
+	if projectPermission < 2 {
+		WriteError(w, "no permission")
+		return
+	}
+
+	// get number of files that would be updated
+	FileCount, err := queries.CountFilesUpdatedSinceCommit(ctx, sqlcgen.CountFilesUpdatedSinceCommitParams{
+		Commitid:  int32(request.CommitId),
+		Projectid: int32(request.ProjectId),
+	})
+	if err != nil {
+		log.Error("couldn't get number of files updated since", "error", err)
+		WriteError(w, "db error")
+		return
+	}
+	// start transaction
+	tx, err := db_pool.Begin(ctx)
+	if err != nil {
+		log.Error("couldn't create transaction", "error", err)
+		WriteError(w, "db error")
+		return
+	}
+	defer tx.Rollback(ctx)
+	qtx := queries.WithTx(tx)
+
+	// create commit
+	NewCommitId, err := qtx.InsertCommit(ctx, sqlcgen.InsertCommitParams{
+		Projectid: int32(request.ProjectId),
+		Userid:    userId,
+		Comment:   "Restoring project state",
+		Numfiles:  int32(FileCount)})
+	if err != nil {
+		log.Error("db couldn't create commit", "db err", err)
+		WriteError(w, "db error")
+		return
+	}
+
+	// insert new filerevisions
+	err = qtx.RestoreProjectToCommit(ctx, sqlcgen.RestoreProjectToCommitParams{Projectid: int32(request.ProjectId), Commitid: int32(request.CommitId), NewCommit: NewCommitId})
+	if err != nil {
+		log.Debug("params", "projectid", int32(request.ProjectId), "commit", int32(request.CommitId), "newcommit", NewCommitId)
+		log.Error("couldnt restore project due to database error", "db err", err)
+		WriteError(w, "db error")
+		return
+	}
+
+	// commit transaction
+	tx.Commit(ctx)
+
+	WriteDefaultSuccess(w, "pogchamp")
 }

@@ -95,6 +95,7 @@ func main() {
 		r.Post("/project", CreateProject)
 		r.Get("/project/info", GetProjectInfo)
 		r.Get("/project/user", GetProjectsForUser)
+		r.Post("/project/restore", RouteProjectRestore)
 		//r.Get("/project/{project-id}/store", project.RouteStoreJWTRequest)
 		r.Get("/project/status/by-id/{project-id}", GetProjectState)
 		r.Post("/team", CreateTeam)

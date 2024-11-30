@@ -230,7 +230,7 @@ func GetS3Download(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check permission level
-	if getProjectPermissionByID(request.UserId, request.ProjectId) < 1 {
+	if GetProjectPermissionByID(request.UserId, request.ProjectId) < 1 {
 		WriteError(w, "no permission")
 		return
 	}

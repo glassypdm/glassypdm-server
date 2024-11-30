@@ -28,6 +28,24 @@ func (q *Queries) CheckProjectName(ctx context.Context, arg CheckProjectNamePara
 	return count, err
 }
 
+const countFilesUpdatedSinceCommit = `-- name: CountFilesUpdatedSinceCommit :one
+SELECT COUNT(*) FROM filerevision WHERE
+commitid >= $1 AND projectid = $2
+GROUP BY path
+`
+
+type CountFilesUpdatedSinceCommitParams struct {
+	Commitid  int32 `json:"commitid"`
+	Projectid int32 `json:"projectid"`
+}
+
+func (q *Queries) CountFilesUpdatedSinceCommit(ctx context.Context, arg CountFilesUpdatedSinceCommitParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countFilesUpdatedSinceCommit, arg.Commitid, arg.Projectid)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countProjectCommits = `-- name: CountProjectCommits :one
 SELECT COUNT(commitid) FROM commit
 WHERE projectid = $1
@@ -772,6 +790,37 @@ func (q *Queries) ListProjectCommits(ctx context.Context, arg ListProjectCommits
 		return nil, err
 	}
 	return items, nil
+}
+
+const restoreProjectToCommit = `-- name: RestoreProjectToCommit :exec
+INSERT INTO filerevision (commitid, projectid, path, filehash, changetype, numchunks, filesize)
+SELECT DISTINCT
+    CAST($3 as integer) as commitid,
+    projectid,
+    path,
+    FIRST_VALUE(filehash) OVER (PARTITION BY path ORDER BY commitid) as filehash,
+    CASE
+        WHEN LAST_VALUE(changetype) OVER (PARTITION BY path ORDER BY commitid) = 3 THEN 1  -- If was deleted, add back
+        WHEN LAST_VALUE(changetype) OVER (PARTITION BY path ORDER BY commitid) = 1 THEN 3  -- If was added, delete
+        ELSE 2  -- Modified case
+    END as changetype,
+    FIRST_VALUE(numchunks) OVER (PARTITION BY path ORDER BY commitid) as numchunks,
+    FIRST_VALUE(filesize) OVER (PARTITION BY path ORDER BY commitid) as filesize
+FROM filerevision
+WHERE filerevision.commitid >= $1
+    AND filerevision.projectid = $2
+GROUP BY projectid, path, commitid, filehash, changetype, numchunks, filesize
+`
+
+type RestoreProjectToCommitParams struct {
+	Commitid  int32 `json:"commitid"`
+	Projectid int32 `json:"projectid"`
+	NewCommit int32 `json:"new_commit"`
+}
+
+func (q *Queries) RestoreProjectToCommit(ctx context.Context, arg RestoreProjectToCommitParams) error {
+	_, err := q.db.Exec(ctx, restoreProjectToCommit, arg.Commitid, arg.Projectid, arg.NewCommit)
+	return err
 }
 
 const setTeamPermission = `-- name: SetTeamPermission :one
