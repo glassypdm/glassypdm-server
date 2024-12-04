@@ -227,7 +227,6 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 // 1 (not found but in team): read only
 // 2 (found): write access
 // 3 (manager): manager, can add write access
-// 4 (owner): can set managers
 func GetProjectPermissionByID(userId string, projectId int) int {
 	ctx := context.Background()
 
@@ -325,12 +324,11 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// verify user can upload to project
-	// TODO update this to be team managers only
-	// check permission
+	// verify that user is at least a team manager
+	// TODO enum or use TeamRole instead of projectpermission
 	userId := claims.Subject
 	projectPermission := GetProjectPermissionByID(userId, request.ProjectId)
-	if projectPermission < 2 {
+	if projectPermission == 3 {
 		WriteError(w, "no permission")
 		return
 	}

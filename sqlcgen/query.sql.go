@@ -29,7 +29,7 @@ func (q *Queries) CheckProjectName(ctx context.Context, arg CheckProjectNamePara
 }
 
 const countFilesUpdatedSinceCommit = `-- name: CountFilesUpdatedSinceCommit :one
-SELECT COUNT(*) FROM filerevision WHERE
+SELECT COUNT(distinct path) FROM filerevision WHERE
 commitid >= $1 AND projectid = $2
 GROUP BY path
 `
