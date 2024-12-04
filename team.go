@@ -201,7 +201,7 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, "insufficient permission")
 		return
 	}
-	userID := getUserIDByEmail(user)
+	userID := GetUserIDByEmail(user)
 
 	// otherwise upsert teampermission
 	if proposedPermission != -4 {

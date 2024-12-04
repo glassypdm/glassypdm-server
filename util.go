@@ -48,7 +48,7 @@ var db_pool *pgxpool.Pool
 //go:embed schema.sql
 var ddl string
 
-func getUserIDByEmail(email string) string {
+func GetUserIDByEmail(email string) string {
 	ctx := context.Background()
 	param := user.ListParams{EmailAddresses: []string{email}}
 
