@@ -10,7 +10,8 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/go-chi/chi/v5"
-	"github.com/joshtenorio/glassypdm-server/sqlcgen"
+	"github.com/joshtenorio/glassypdm-server/internal/dal"
+	"github.com/joshtenorio/glassypdm-server/internal/sqlcgen"
 )
 
 type Project struct {
@@ -68,13 +69,13 @@ func GetProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	user := claims.Subject
 
 	// get user's projects
-	teams, err := queries.FindUserTeams(ctx, user)
+	teams, err := dal.Queries.FindUserTeams(ctx, user)
 	if err != nil {
 		log.Error("couldn't retrieve user's teams", "user", user, "err", err.Error())
 	}
 	projects := []Project{}
 	for _, team := range teams {
-		TeamProjects, err := queries.FindTeamProjects(ctx, team.Teamid)
+		TeamProjects, err := dal.Queries.FindTeamProjects(ctx, team.Teamid)
 		if err != nil {
 			log.Error("couldn't retrieve team's projects", "teamid", team.Teamid, "err", err.Error())
 		}
@@ -84,7 +85,7 @@ func GetProjectsForUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get user's managed teams
-	managedTeams, _ := queries.FindUserManagedTeams(ctx, user)
+	managedTeams, _ := dal.Queries.FindUserManagedTeams(ctx, user)
 	managed := []Team{}
 	for _, team := range managedTeams {
 		managed = append(managed, Team{Id: int(team.Teamid), Name: team.Name})
@@ -120,7 +121,7 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check permission level in team
-	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int32(request.TeamID), Userid: claims.Subject})
+	permission, err := dal.Queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int32(request.TeamID), Userid: claims.Subject})
 	if err != nil {
 		log.Error("couldn't get team permission", "team", request.TeamID, "user", claims.Subject)
 		WriteError(w, "db error")
@@ -133,13 +134,13 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pid, err := queries.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int32(request.TeamID), Title: request.Name})
+	pid, err := dal.Queries.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int32(request.TeamID), Title: request.Name})
 	if err != nil {
 		log.Error("insufficient permission for creating project", "db error", err)
 		WriteError(w, "db error")
 		return
 	}
-	_, err = queries.InsertCommit(ctx, sqlcgen.InsertCommitParams{Projectid: pid, Userid: claims.Subject, Comment: "Initial commit", Numfiles: 0})
+	_, err = dal.Queries.InsertCommit(ctx, sqlcgen.InsertCommitParams{Projectid: pid, Userid: claims.Subject, Comment: "Initial commit", Numfiles: 0})
 	if err != nil {
 		log.Error("couldn't insert commit", "db error", err)
 		WriteError(w, "db error")
@@ -168,24 +169,24 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectname, err := queries.GetProjectInfo(ctx, int32(pid))
+	projectname, err := dal.Queries.GetProjectInfo(ctx, int32(pid))
 	if err != nil {
 		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 		return
 	}
-	team, err := queries.GetTeamFromProject(ctx, int32(pid))
-	if err != nil {
-		log.Error("db error", "err", err.Error())
-		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
-		return
-	}
-	teamName, err := queries.GetTeamName(ctx, team)
+	team, err := dal.Queries.GetTeamFromProject(ctx, int32(pid))
 	if err != nil {
 		log.Error("db error", "err", err.Error())
 		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
 		return
 	}
-	cid, err := queries.FindProjectInitCommit(ctx, int32(pid))
+	teamName, err := dal.Queries.GetTeamName(ctx, team)
+	if err != nil {
+		log.Error("db error", "err", err.Error())
+		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
+		return
+	}
+	cid, err := dal.Queries.FindProjectInitCommit(ctx, int32(pid))
 	if err != nil {
 		log.Error("db error", "err", err.Error())
 		if err.Error() == "sql: no rows in result set" {
@@ -197,7 +198,7 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: claims.Subject})
+	permission, err := dal.Queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: claims.Subject})
 	if err != nil {
 		log.Error("db error", "err", err.Error())
 		fmt.Fprintf(w, `{ "response": "db error", "db": "%s" }`, err.Error())
@@ -230,7 +231,7 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 func GetProjectPermissionByID(userId string, projectId int) int {
 	ctx := context.Background()
 
-	teamId, err := queries.GetTeamByProject(ctx, int32(projectId))
+	teamId, err := dal.Queries.GetTeamByProject(ctx, int32(projectId))
 	if err != nil {
 		log.Warn("db error", "err", err.Error())
 		return 0
@@ -244,7 +245,7 @@ func GetProjectPermissionByID(userId string, projectId int) int {
 		return 3
 	}
 
-	membership, err := queries.IsUserInPermissionGroup(ctx, sqlcgen.IsUserInPermissionGroupParams{Userid: userId, Projectid: int32(projectId)})
+	membership, err := dal.Queries.IsUserInPermissionGroup(ctx, sqlcgen.IsUserInPermissionGroupParams{Userid: userId, Projectid: int32(projectId)})
 	if err != nil {
 		if err.Error() == "no rows in result set" {
 			log.Debug("user not found in permission group")
@@ -289,7 +290,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get project state
-	output, err := queries.GetProjectState(ctx, int32(projectId))
+	output, err := dal.Queries.GetProjectState(ctx, int32(projectId))
 	if err != nil {
 		log.Error("db error", "project", projectId, "err", err.Error())
 		WriteError(w, "db error")
@@ -334,7 +335,7 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get number of files that would be updated
-	FileCount, err := queries.CountFilesUpdatedSinceCommit(ctx, sqlcgen.CountFilesUpdatedSinceCommitParams{
+	FileCount, err := dal.Queries.CountFilesUpdatedSinceCommit(ctx, sqlcgen.CountFilesUpdatedSinceCommitParams{
 		Commitid:  int32(request.CommitId),
 		Projectid: int32(request.ProjectId),
 	})
@@ -344,14 +345,14 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// start transaction
-	tx, err := db_pool.Begin(ctx)
+	tx, err := dal.DbPool.Begin(ctx)
 	if err != nil {
 		log.Error("couldn't create transaction", "error", err)
 		WriteError(w, "db error")
 		return
 	}
 	defer tx.Rollback(ctx)
-	qtx := queries.WithTx(tx)
+	qtx := dal.Queries.WithTx(tx)
 
 	// create commit
 	NewCommitId, err := qtx.InsertCommit(ctx, sqlcgen.InsertCommitParams{

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"net/http"
 	"os"
 
@@ -11,14 +12,18 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joshtenorio/glassypdm-server/internal/dal"
 	"github.com/joshtenorio/glassypdm-server/internal/project"
-	"github.com/joshtenorio/glassypdm-server/sqlcgen"
+	"github.com/joshtenorio/glassypdm-server/internal/sqlcgen"
 
 	"github.com/joho/godotenv"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
 )
+
+//go:embed schema.sql
+var Ddl string
 
 func main() {
 	ctx := context.Background()
@@ -42,20 +47,20 @@ func main() {
 
 	url := "postgresql://" + PSQLUser + ":" + PSQLPass + "@" + PSQLUrl + "/" + PSQLDatabase + "?sslmode=require"
 	log.Debug("PSQL url", "url", url)
-	db_pool, err = pgxpool.New(ctx, url)
+	dal.DbPool, err = pgxpool.New(ctx, url)
 	if err != nil {
 		log.Fatal("could not connect to db", "db error", err)
 	}
-	defer db_pool.Close()
+	defer dal.DbPool.Close()
 
 	//log.Debug("ddl", "ddl", ddl)
-	_, err = db_pool.Exec(ctx, ddl)
+	_, err = dal.DbPool.Exec(ctx, Ddl)
 	if err != nil {
 		// TODO should this be fatal or error?
 		log.Fatal("error executing ddl", "db error", err)
 	}
 
-	queries = *sqlcgen.New(db_pool)
+	dal.Queries = *sqlcgen.New(dal.DbPool)
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
