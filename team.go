@@ -87,7 +87,7 @@ func CreateTeam(w http.ResponseWriter, r *http.Request) {
 // 1: team member
 // 2: manager
 // 3: owner
-func checkPermissionByEmail(email string, teamid int) int {
+func CheckPermissionByEmail(email string, teamid int) int {
 	ctx := context.Background()
 	searchResult := user.ListParams{EmailAddresses: []string{email}}
 
@@ -104,12 +104,12 @@ func checkPermissionByEmail(email string, teamid int) int {
 		userid = user.ID
 	}
 
-	permission := checkPermissionByID(teamid, userid)
+	permission := CheckPermissionByID(teamid, userid)
 
 	return permission
 }
 
-func checkPermissionByID(teamid int, userid string) int {
+func CheckPermissionByID(teamid int, userid string) int {
 	ctx := context.Background()
 
 	permission, err := queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int32(teamid), Userid: userid})
@@ -141,7 +141,7 @@ func GetPermission(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{ "response": "incorrect format" }`)
 		return
 	}
-	level := checkPermissionByEmail(user, teamid)
+	level := CheckPermissionByEmail(user, teamid)
 	fmt.Fprintf(w, `
 	{
 		"response": "ok",
@@ -179,8 +179,8 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	teamId := req.TeamId
 	proposedPermission := req.Level
 
-	setterPermission := checkPermissionByID(teamId, setterId)
-	userPermisssion := checkPermissionByEmail(user, teamId)
+	setterPermission := CheckPermissionByID(teamId, setterId)
+	userPermisssion := CheckPermissionByEmail(user, teamId)
 	if userPermisssion == -2 {
 		WriteError(w, "user does not exist")
 		return
@@ -204,7 +204,6 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	userID := getUserIDByEmail(user)
 
 	// otherwise upsert teampermission
-	// TODO handle errors
 	if proposedPermission != -4 {
 		_, err = queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int32(teamId), Level: int32(proposedPermission)})
 
@@ -311,7 +310,7 @@ func QueryTeamInformation(w http.ResponseWriter, teamId int, userId string) {
 		return
 	}
 
-	level := checkPermissionByID(teamId, userId)
+	level := CheckPermissionByID(teamId, userId)
 	levelStr := ""
 	// if level is negative, you are not in the team
 	// and do not have permission to see team membership
@@ -422,7 +421,7 @@ func GetBasicTeamInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	level := checkPermissionByID(teamId, userId)
+	level := CheckPermissionByID(teamId, userId)
 	levelStr := ""
 	// if level is negative, you are not in the team
 	// and do not have permission to see team membership

@@ -237,7 +237,7 @@ func GetProjectPermissionByID(userId string, projectId int) int {
 		return 0
 	}
 
-	teamPermission := checkPermissionByID(int(teamId), userId)
+	teamPermission := CheckPermissionByID(int(teamId), userId)
 	// not in team: < 1
 	if teamPermission < 1 {
 		return 0

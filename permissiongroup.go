@@ -37,7 +37,7 @@ func CreatePermissionGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check if user has permission to create pgroup for team
-	level := checkPermissionByID(request.TeamID, string(claims.Subject))
+	level := CheckPermissionByID(request.TeamID, string(claims.Subject))
 	if level < 2 {
 		WriteError(w, "insufficient permission")
 		return
@@ -90,7 +90,7 @@ func CreatePGMapping(w http.ResponseWriter, r *http.Request) {
 	}
 	// check that user is a manager or owner
 	// TODO double check numbers
-	if checkPermissionByID(int(team), claims.Subject) < 2 {
+	if CheckPermissionByID(int(team), claims.Subject) < 2 {
 		WriteError(w, "insufficient permission")
 		return
 	}
@@ -165,7 +165,7 @@ func RemoveUserFromPG(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, "db error")
 		return
 	}
-	level := checkPermissionByID(int(team), claims.Subject)
+	level := CheckPermissionByID(int(team), claims.Subject)
 	if level < 2 {
 		WriteError(w, "insufficient permission")
 		return
@@ -206,7 +206,7 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, "db error")
 		return
 	}
-	level := checkPermissionByID(int(team), claims.Subject)
+	level := CheckPermissionByID(int(team), claims.Subject)
 	if level < 2 {
 		WriteError(w, "insufficient permission")
 		return
@@ -257,7 +257,7 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, "db error")
 		return
 	}
-	level := checkPermissionByID(int(team), caller)
+	level := CheckPermissionByID(int(team), caller)
 	if level <= 0 {
 		log.Debug("user's permission was insufficient", "user", caller, "level", level)
 		WriteError(w, "insufficient permission")
