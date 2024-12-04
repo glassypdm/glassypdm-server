@@ -161,24 +161,57 @@ WHERE commitid = $1;
 
 -- name: RestoreProjectToCommit :exec
 INSERT INTO filerevision (commitid, projectid, path, filehash, changetype, numchunks, filesize)
+WITH 
+changedpaths AS (
+    SELECT DISTINCT path
+    FROM filerevision
+    WHERE projectid = $2
+      AND commitid > CAST($1 AS INTEGER)
+),
+revertcommitstate AS (
+    SELECT 
+        projectid, 
+        path, 
+        filehash,
+        changetype,
+        numchunks,
+        filesize,
+        ROW_NUMBER() OVER (PARTITION BY projectid, path ORDER BY commitid DESC) as rn
+    FROM filerevision
+    WHERE projectid = $2
+      AND path IN (SELECT path FROM changedpaths)
+      AND commitid <= CAST($1 AS INTEGER)
+)
 SELECT DISTINCT
-    CAST(sqlc.arg(new_commit) as integer) as commitid,
-    projectid,
-    path,
-    FIRST_VALUE(filehash) OVER (PARTITION BY path ORDER BY commitid) as filehash,
-    CASE
-        WHEN LAST_VALUE(changetype) OVER (PARTITION BY path ORDER BY commitid) = 3 THEN 1  -- If was deleted, add back
-        WHEN LAST_VALUE(changetype) OVER (PARTITION BY path ORDER BY commitid) = 1 THEN 3  -- If was added, delete
-        ELSE 2  -- Modified case
+    CAST(sqlc.arg(new_commit) AS INTEGER) as commitid,
+    revertcommitstate.projectid,
+    revertcommitstate.path,
+    revertcommitstate.filehash,
+    CASE 
+        WHEN revertcommitstate.path IN (
+            SELECT path 
+            FROM filerevision 
+            WHERE projectid = $2 
+              AND commitid > CAST($1 AS INTEGER)
+        ) THEN 
+            CASE 
+                WHEN NOT EXISTS (
+                    SELECT 1 
+                    FROM revertcommitstate 
+                    WHERE projectid = revertcommitstate.projectid 
+                      AND path = revertcommitstate.path
+                ) THEN 3  -- File was created after revert commit, so delete
+                WHEN revertcommitstate.changetype = 3 THEN 1  -- If deleted, add back
+                WHEN revertcommitstate.changetype = 1 THEN 3  -- If added, delete
+                ELSE 2  -- Modified case
+            END
+        ELSE 2  -- Unchanged files remain as is
     END as changetype,
-    FIRST_VALUE(numchunks) OVER (PARTITION BY path ORDER BY commitid) as numchunks,
-    FIRST_VALUE(filesize) OVER (PARTITION BY path ORDER BY commitid) as filesize
-FROM filerevision
-WHERE filerevision.commitid >= $1
-    AND filerevision.projectid = $2
-GROUP BY projectid, path, commitid, filehash, changetype, numchunks, filesize;
+    revertcommitstate.numchunks,
+    revertcommitstate.filesize
+FROM revertcommitstate
+WHERE revertcommitstate.rn = 1;
 
 -- name: CountFilesUpdatedSinceCommit :one
 SELECT COUNT(distinct path) FROM filerevision WHERE
-commitid >= $1 AND projectid = $2
-GROUP BY path;
+commitid > $1 AND projectid = $2;

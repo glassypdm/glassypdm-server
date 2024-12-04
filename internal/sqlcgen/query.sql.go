@@ -30,8 +30,7 @@ func (q *Queries) CheckProjectName(ctx context.Context, arg CheckProjectNamePara
 
 const countFilesUpdatedSinceCommit = `-- name: CountFilesUpdatedSinceCommit :one
 SELECT COUNT(distinct path) FROM filerevision WHERE
-commitid >= $1 AND projectid = $2
-GROUP BY path
+commitid > $1 AND projectid = $2
 `
 
 type CountFilesUpdatedSinceCommitParams struct {
@@ -807,7 +806,7 @@ SELECT DISTINCT
     FIRST_VALUE(numchunks) OVER (PARTITION BY path ORDER BY commitid) as numchunks,
     FIRST_VALUE(filesize) OVER (PARTITION BY path ORDER BY commitid) as filesize
 FROM filerevision
-WHERE filerevision.commitid >= $1
+WHERE filerevision.commitid > $1
     AND filerevision.projectid = $2
 GROUP BY projectid, path, commitid, filehash, changetype, numchunks, filesize
 `
