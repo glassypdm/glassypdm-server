@@ -329,7 +329,8 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 	// TODO enum or use TeamRole instead of projectpermission
 	userId := claims.Subject
 	projectPermission := GetProjectPermissionByID(userId, request.ProjectId)
-	if projectPermission == 3 {
+	if projectPermission < 3 {
+		log.Warn("user does not have permission to restore project state", "levl", projectPermission)
 		WriteError(w, "no permission")
 		return
 	}
@@ -341,6 +342,14 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Error("couldn't get number of files updated since", "error", err)
+		WriteError(w, "db error")
+		return
+	}
+
+	// get commit number
+	info, err := dal.Queries.GetCommitInfo(ctx, int32(request.CommitId))
+	if err != nil {
+		log.Error("couldn't get commit number for message", "error", err)
 		WriteError(w, "db error")
 		return
 	}
@@ -358,7 +367,7 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 	NewCommitId, err := qtx.InsertCommit(ctx, sqlcgen.InsertCommitParams{
 		Projectid: int32(request.ProjectId),
 		Userid:    userId,
-		Comment:   "Restoring project state",
+		Comment:   "Restoring project state to Project Update " + strconv.Itoa(int(info.Cno.Int32)),
 		Numfiles:  int32(FileCount)})
 	if err != nil {
 		log.Error("db couldn't create commit", "db err", err)
