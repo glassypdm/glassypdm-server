@@ -41,7 +41,7 @@ func getConfig(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(data)
 }
 
-func getUserIDByEmail(email string) string {
+func GetUserIDByEmail(email string) string {
 	ctx := context.Background()
 	param := user.ListParams{EmailAddresses: []string{email}}
 
