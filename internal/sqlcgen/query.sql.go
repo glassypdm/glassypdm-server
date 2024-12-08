@@ -792,23 +792,7 @@ func (q *Queries) ListProjectCommits(ctx context.Context, arg ListProjectCommits
 }
 
 const restoreProjectToCommit = `-- name: RestoreProjectToCommit :exec
-INSERT INTO filerevision (commitid, projectid, path, filehash, changetype, numchunks, filesize)
-SELECT DISTINCT
-    CAST($3 as integer) as commitid,
-    projectid,
-    path,
-    FIRST_VALUE(filehash) OVER (PARTITION BY path ORDER BY commitid) as filehash,
-    CASE
-        WHEN LAST_VALUE(changetype) OVER (PARTITION BY path ORDER BY commitid) = 3 THEN 1  -- If was deleted, add back
-        WHEN LAST_VALUE(changetype) OVER (PARTITION BY path ORDER BY commitid) = 1 THEN 3  -- If was added, delete
-        ELSE 2  -- Modified case
-    END as changetype,
-    FIRST_VALUE(numchunks) OVER (PARTITION BY path ORDER BY commitid) as numchunks,
-    FIRST_VALUE(filesize) OVER (PARTITION BY path ORDER BY commitid) as filesize
-FROM filerevision
-WHERE filerevision.commitid > $1
-    AND filerevision.projectid = $2
-GROUP BY projectid, path, commitid, filehash, changetype, numchunks, filesize
+SELECT commitid, projectid, userid, comment, numfiles, cno, timestamp FROM commit WHERE numfiles = $3 and projectid = $2 and commitid = $1
 `
 
 type RestoreProjectToCommitParams struct {
@@ -817,6 +801,7 @@ type RestoreProjectToCommitParams struct {
 	NewCommit int32 `json:"new_commit"`
 }
 
+// TODO
 func (q *Queries) RestoreProjectToCommit(ctx context.Context, arg RestoreProjectToCommitParams) error {
 	_, err := q.db.Exec(ctx, restoreProjectToCommit, arg.Commitid, arg.Projectid, arg.NewCommit)
 	return err

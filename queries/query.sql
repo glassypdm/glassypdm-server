@@ -159,58 +159,9 @@ SELECT frid as filerevision_id, path, frno as filerevision_number, changetype, f
 FROM filerevision
 WHERE commitid = $1;
 
+-- TODO
 -- name: RestoreProjectToCommit :exec
-INSERT INTO filerevision (commitid, projectid, path, filehash, changetype, numchunks, filesize)
-WITH 
-changedpaths AS (
-    SELECT DISTINCT path
-    FROM filerevision
-    WHERE projectid = $2
-      AND commitid > CAST($1 AS INTEGER)
-),
-revertcommitstate AS (
-    SELECT 
-        projectid, 
-        path, 
-        filehash,
-        changetype,
-        numchunks,
-        filesize,
-        ROW_NUMBER() OVER (PARTITION BY projectid, path ORDER BY commitid DESC) as rn
-    FROM filerevision
-    WHERE projectid = $2
-      AND path IN (SELECT path FROM changedpaths)
-      AND commitid <= CAST($1 AS INTEGER)
-)
-SELECT DISTINCT
-    CAST(sqlc.arg(new_commit) AS INTEGER) as commitid,
-    revertcommitstate.projectid,
-    revertcommitstate.path,
-    revertcommitstate.filehash,
-    CASE 
-        WHEN revertcommitstate.path IN (
-            SELECT path 
-            FROM filerevision 
-            WHERE projectid = $2 
-              AND commitid > CAST($1 AS INTEGER)
-        ) THEN 
-            CASE 
-                WHEN NOT EXISTS (
-                    SELECT 1 
-                    FROM revertcommitstate 
-                    WHERE projectid = revertcommitstate.projectid 
-                      AND path = revertcommitstate.path
-                ) THEN 3  -- File was created after revert commit, so delete
-                WHEN revertcommitstate.changetype = 3 THEN 1  -- If deleted, add back
-                WHEN revertcommitstate.changetype = 1 THEN 3  -- If added, delete
-                ELSE 2  -- Modified case
-            END
-        ELSE 2  -- Unchanged files remain as is
-    END as changetype,
-    revertcommitstate.numchunks,
-    revertcommitstate.filesize
-FROM revertcommitstate
-WHERE revertcommitstate.rn = 1;
+SELECT * FROM commit WHERE numfiles = sqlc.arg(new_commit) and projectid = $2 and commitid = $1;
 
 -- name: CountFilesUpdatedSinceCommit :one
 SELECT COUNT(distinct path) FROM filerevision WHERE
