@@ -25,10 +25,8 @@ jobs:
       with:
         sqlc-version: '1.27.0'
     - name: Verify sqlc
-      run: sqlc version
-    - name: Generate sqlc
-      run: sqlc generate
-    - name: Build
+      run: sqlc diff
+    - name: Build backend
       run: go build -v ./...
 
 #    - name: Test
