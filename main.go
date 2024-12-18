@@ -40,13 +40,14 @@ func main() {
 	PSQLPass := os.Getenv("PSQL_PASSWORD")
 	PSQLUrl := os.Getenv("PSQL_URL")
 	PSQLDatabase := os.Getenv("PSQL_DATABASE")
-	if PSQLUser == "" || PSQLPass == "" || PSQLUrl == "" || PSQLDatabase == "" {
+	PSQLFullURL := os.Getenv("PSQL_FULL_URL")
+	if PSQLUser == "" || PSQLPass == "" || PSQLUrl == "" || PSQLDatabase == "" || PSQLFullURL == "" {
 		log.Fatal("Missing a database environment")
 	}
 	var err error
 
-	url := "postgresql://" + PSQLUser + ":" + PSQLPass + "@" + PSQLUrl + "/" + PSQLDatabase + "?sslmode=require"
-	log.Debug("PSQL url", "url", url)
+	url := PSQLFullURL
+	//log.Debug("PSQL url", "url", url)
 	dal.DbPool, err = pgxpool.New(ctx, url)
 	if err != nil {
 		log.Fatal("could not connect to db", "db error", err)
