@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/joshtenorio/glassypdm-server/internal/dal"
 	"github.com/joshtenorio/glassypdm-server/internal/sqlcgen"
 )
@@ -267,6 +268,7 @@ func GetProjectPermissionByID(userId string, projectId int) int {
 	return 0
 }
 
+// TODO remove after 0.7.2 is released, lmao
 func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -283,6 +285,28 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, "incorrect format")
 	}
 
+	// something useful comment
+	UseLatest := true
+	var CommitId int32
+	commitstr := chi.URLParam(r, "commit-no")
+	log.Debug("getting project state:", "c", commitstr)
+	if commitstr != "latest" {
+		UseLatest = false
+		commitno, err := strconv.Atoi(commitstr)
+		if err != nil {
+			log.Error("commit number url param is malformed")
+			WriteError(w, "incorrect format")
+			return
+		}
+		CommitId, err = dal.Queries.GetCommitIdFromNo(ctx, sqlcgen.GetCommitIdFromNoParams{Projectid: int32(projectId), Cno: pgtype.Int4{Valid: true, Int32: int32(commitno)}})
+		if err != nil {
+			log.Error("couldn't find commit number", "cno", commitno, "project", projectId)
+			WriteError(w, "what")
+			return
+		}
+		log.Debug("found commit id for cno:", "cid", CommitId, "cno", commitno)
+	}
+
 	if GetProjectPermissionByID(claims.Subject, projectId) < 1 {
 		log.Warn("insufficient permission", "user", claims.Subject, "projectId", projectId)
 		WriteError(w, "insufficient permission")
@@ -290,19 +314,38 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get project state
-	output, err := dal.Queries.GetProjectState(ctx, int32(projectId))
-	if err != nil {
-		log.Error("db error", "project", projectId, "err", err.Error())
-		WriteError(w, "db error")
+	// TODO refactor this mess lmao
+	if UseLatest {
+		output, err := dal.Queries.GetProjectState(ctx, int32(projectId))
+		if err != nil {
+			log.Error("db error", "project", projectId, "err", err.Error())
+			WriteError(w, "db error")
+			return
+		}
+		if len(output) == 0 {
+			log.Warn("project state output is empty")
+		}
+
+		OutputBytes, _ := json.Marshal(output)
+
+		WriteSuccess(w, string(OutputBytes))
+		return
+	} else {
+		output, err := dal.Queries.GetProjectStateAtCommit(ctx, sqlcgen.GetProjectStateAtCommitParams{Projectid: int32(projectId), Commitid: int32(CommitId)})
+		if err != nil {
+			log.Error("db error", "project", projectId, "err", err.Error())
+			WriteError(w, "db error")
+			return
+		}
+		if len(output) == 0 {
+			log.Warn("project state output is empty")
+		}
+
+		OutputBytes, _ := json.Marshal(output)
+
+		WriteSuccess(w, string(OutputBytes))
 		return
 	}
-	if len(output) == 0 {
-		log.Warn("project state output is empty")
-	}
-
-	OutputBytes, _ := json.Marshal(output)
-
-	WriteSuccess(w, string(OutputBytes))
 }
 
 type RestoreProjectRequest struct {

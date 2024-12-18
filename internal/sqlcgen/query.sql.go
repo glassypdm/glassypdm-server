@@ -200,6 +200,24 @@ func (q *Queries) FindUserTeams(ctx context.Context, userid string) ([]FindUserT
 	return items, nil
 }
 
+const getCommitIdFromNo = `-- name: GetCommitIdFromNo :one
+SELECT commitid FROM commit WHERE
+cno = $1 AND projectid = $2
+LIMIT 1
+`
+
+type GetCommitIdFromNoParams struct {
+	Cno       pgtype.Int4 `json:"cno"`
+	Projectid int32       `json:"projectid"`
+}
+
+func (q *Queries) GetCommitIdFromNo(ctx context.Context, arg GetCommitIdFromNoParams) (int32, error) {
+	row := q.db.QueryRow(ctx, getCommitIdFromNo, arg.Cno, arg.Projectid)
+	var commitid int32
+	err := row.Scan(&commitid)
+	return commitid, err
+}
+
 const getCommitInfo = `-- name: GetCommitInfo :one
 SELECT
   cno,
@@ -453,7 +471,7 @@ func (q *Queries) GetProjectState(ctx context.Context, projectid int32) ([]GetPr
 
 const getProjectStateAtCommit = `-- name: GetProjectStateAtCommit :many
 SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
-INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision WHERE filerevision.commitid <= $2 GROUP BY path  ) b
 ON a.path = b.path AND a.frid = b.frid
 WHERE a.projectid = $1 AND a.commitid <= $2
 `
@@ -747,12 +765,13 @@ const listProjectCommits = `-- name: ListProjectCommits :many
 SELECT cno, numfiles, userid, comment, commitid, timestamp FROM commit
 WHERE projectid = $1
 ORDER BY commitid DESC
-LIMIT 5 OFFSET $2
+LIMIT $3 OFFSET $2
 `
 
 type ListProjectCommitsParams struct {
 	Projectid int32 `json:"projectid"`
 	Offset    int32 `json:"offset"`
+	Limit     int32 `json:"limit"`
 }
 
 type ListProjectCommitsRow struct {
@@ -765,7 +784,7 @@ type ListProjectCommitsRow struct {
 }
 
 func (q *Queries) ListProjectCommits(ctx context.Context, arg ListProjectCommitsParams) ([]ListProjectCommitsRow, error) {
-	rows, err := q.db.Query(ctx, listProjectCommits, arg.Projectid, arg.Offset)
+	rows, err := q.db.Query(ctx, listProjectCommits, arg.Projectid, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

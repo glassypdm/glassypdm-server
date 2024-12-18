@@ -110,7 +110,7 @@ WHERE a.projectid = $1;
 
 -- name: GetProjectStateAtCommit :many
 SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
-INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision WHERE filerevision.commitid <= $2 GROUP BY path  ) b
 ON a.path = b.path AND a.frid = b.frid
 WHERE a.projectid = $1 AND a.commitid <= $2;
 
@@ -135,7 +135,7 @@ WHERE a.projectid = $1 AND changetype != 3;
 SELECT cno, numfiles, userid, comment, commitid, timestamp FROM commit
 WHERE projectid = $1
 ORDER BY commitid DESC
-LIMIT 5 OFFSET $2;
+LIMIT $3 OFFSET $2;
 
 -- name: CountProjectCommits :one
 SELECT COUNT(commitid) FROM commit
@@ -166,3 +166,8 @@ SELECT * FROM commit WHERE numfiles = sqlc.arg(new_commit) and projectid = $2 an
 -- name: CountFilesUpdatedSinceCommit :one
 SELECT COUNT(distinct path) FROM filerevision WHERE
 commitid > $1 AND projectid = $2;
+
+-- name: GetCommitIdFromNo :one
+SELECT commitid FROM commit WHERE
+cno = $1 AND projectid = $2
+LIMIT 1;

@@ -193,7 +193,7 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get commits
-	CommitDto, err := dal.Queries.ListProjectCommits(ctx, sqlcgen.ListProjectCommitsParams{Projectid: int32(pid), Offset: int32(offset)})
+	CommitDto, err := dal.Queries.ListProjectCommits(ctx, sqlcgen.ListProjectCommitsParams{Projectid: int32(pid), Offset: int32(offset), Limit: 8})
 	if err != nil {
 		log.Error("db error", "sql", err.Error())
 		WriteError(w, "db error")
