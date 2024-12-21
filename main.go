@@ -57,7 +57,6 @@ func main() {
 	//log.Debug("ddl", "ddl", ddl)
 	_, err = dal.DbPool.Exec(ctx, Ddl)
 	if err != nil {
-		// TODO should this be fatal or error?
 		log.Fatal("error executing ddl", "db error", err)
 	}
 
@@ -100,10 +99,11 @@ func main() {
 		r.Get("/commit/by-id/{commit-id}", GetCommitInformation)
 		r.Post("/project", CreateProject)
 		r.Get("/project/info", GetProjectInfo)
+		r.Get("/project/commit", RouteGetProjectCommit)
 		r.Get("/project/user", GetProjectsForUser)
 		r.Post("/project/restore", RouteProjectRestore)
-		//r.Get("/project/{project-id}/store", project.RouteStoreJWTRequest)
 		r.Get("/project/status/by-id/{project-id}/{commit-no}", GetProjectState)
+		//r.Get("/project/{project-id}/store", project.RouteStoreJWTRequest)
 		r.Post("/team", CreateTeam)
 		r.Get("/team", GetTeamForUser)
 		r.Get("/team/by-id/{team-id}", getTeamInformation)

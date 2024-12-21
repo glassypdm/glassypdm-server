@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/clerk/clerk-sdk-go/v2"
+	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/joshtenorio/glassypdm-server/internal/dal"
@@ -431,4 +432,91 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 	tx.Commit(ctx)
 
 	WriteDefaultSuccess(w, "pogchamp")
+}
+
+func RouteGetProjectCommit(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	if r.URL.Query().Get("pid") == "" {
+		WriteError(w, "incorrect format")
+		return
+	}
+
+	if r.URL.Query().Get("cno") == "" {
+		WriteError(w, "incorrect format")
+		return
+	}
+	projectId, err := strconv.Atoi(r.URL.Query().Get("pid"))
+	if err != nil {
+		WriteError(w, "incorrect format")
+		return
+	}
+	cno, err := strconv.Atoi(r.URL.Query().Get("cno"))
+	if err != nil {
+		WriteError(w, "incorrect format")
+		return
+	}
+
+	// check permissions
+	if GetProjectPermissionByID(claims.Subject, projectId) < 1 {
+		log.Warn("insufficient permission", "user", claims.Subject, "projectId", projectId)
+		WriteError(w, "insufficient permission")
+		return
+	}
+	CommitId, err := dal.Queries.GetCommitIdFromNo(
+		ctx,
+		sqlcgen.GetCommitIdFromNoParams{Projectid: int32(projectId), Cno: pgtype.Int4{Valid: true, Int32: int32(cno)}})
+	if err != nil {
+		WriteError(w, "db error")
+		return
+	}
+
+	// TODO refactor lmao bc this is copy pasta'd
+	// get commit info for cno
+	CommitInfoDto, err := dal.Queries.GetCommitInfo(ctx, int32(CommitId))
+	if err != nil {
+		WriteError(w, "db error")
+		log.Warn("encountered db error when getting commit info", "db", err, "commit-id", CommitId)
+		return
+	}
+
+	// get file revisions
+	Files, err := dal.Queries.GetFileRevisionsByCommitId(ctx, int32(CommitId))
+	if err != nil {
+		WriteError(w, "db error")
+		log.Warn("encountered db error when getting file revisions for commit", "db", err, "commit-id", CommitId)
+		return
+	}
+
+	var Output CommitInformation
+	Output.FilesChanged = Files
+
+	usr, err := user.Get(ctx, CommitInfoDto.Userid)
+	name := ""
+	if err != nil {
+		WriteError(w, "invalid user id")
+		return
+	}
+	name = *usr.FirstName + " " + *usr.LastName
+
+	Output.Description = CommitDescription{
+		CommitId:     int(CommitId),
+		CommitNumber: int(CommitInfoDto.Cno.Int32),
+		NumFiles:     int(CommitInfoDto.Numfiles),
+		Comment:      CommitInfoDto.Comment,
+		Timestamp:    CommitInfoDto.Timestamp.Time.UnixNano() / 1000000000,
+		Author:       name,
+	}
+
+	OutputJson, err := json.Marshal(Output)
+	if err != nil {
+		WriteError(w, "json error")
+		return
+	}
+	WriteSuccess(w, string(OutputJson))
 }
