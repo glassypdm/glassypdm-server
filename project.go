@@ -291,7 +291,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	var CommitId int32
 	commitstr := chi.URLParam(r, "commit-no")
 	log.Debug("getting project state:", "c", commitstr)
-	if commitstr != "latest" {
+	if commitstr != "latest" && commitstr != "" {
 		UseLatest = false
 		commitno, err := strconv.Atoi(commitstr)
 		if err != nil {
@@ -314,7 +314,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// get project state
+	// get latest project state
 	// TODO refactor this mess lmao
 	if UseLatest {
 		output, err := dal.Queries.GetProjectState(ctx, int32(projectId))

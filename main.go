@@ -101,7 +101,8 @@ func main() {
 		r.Get("/project/info", GetProjectInfo)
 		r.Get("/project/commit", RouteGetProjectCommit)
 		r.Get("/project/user", GetProjectsForUser)
-		r.Post("/project/restore", RouteProjectRestore)
+		//r.Post("/project/restore", RouteProjectRestore)
+		r.Get("/project/status/by-id/{project-id}", GetProjectState) // TODO remove after v0.7.2 is released
 		r.Get("/project/status/by-id/{project-id}/{commit-no}", GetProjectState)
 		//r.Get("/project/{project-id}/store", project.RouteStoreJWTRequest)
 		r.Post("/team", CreateTeam)
