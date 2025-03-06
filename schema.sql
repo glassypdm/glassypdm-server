@@ -96,6 +96,47 @@ CREATE TABLE IF NOT EXISTS chunk(
     UNIQUE(filehash, chunkindex)
 );
 
+/*
+CREATE TABLE IF NOT EXISTS part(
+    partid SERIAL PRIMARY KEY NOT NULL,
+    projectid INTEGER NOT NULL,
+    teamid INTEGER NOT NULL,
+    partname TEXT NOT NULL,
+    partnumber TEXT NOT NULL,
+    parttype INTEGER NOT NULL,
+    UNIQUE(teamid, partnumber)
+);
+
+CREATE TABLE IF NOT EXISTS partedithistory(
+    partedithistoryid SERIAL PRIMARY KEY NOT NULL,
+    partid INTEGER NOT NULL,
+    edit TEXT NOT NULL,
+    timestamp TIMESTAMP DEFAULT NOW() NOT NULL,
+    FOREIGN KEY(partid) REFERENCES part(partid) 
+);
+
+CREATE TABLE IF NOT EXISTS partversion(
+    partversionid SERIAL PRIMARY KEY NOT NULL,
+    partid INTEGER NOT NULL,
+    release BOOLEAN NOT NULL,
+    locked BOOLEAN NOT NULL,
+    lockedby TEXT NOT NULL,
+    lockedtimestamp TEXT NOT NULL,
+    pvno INTEGER,
+    FOREIGN KEY(partid) REFERENCES part(partid) 
+);
+
+CREATE TABLE IF NOT EXISTS partfile(
+    partfileid SERIAL PRIMARY KEY NOT NULL,
+    partversionid INTEGER NOT NULL,
+    filetype TEXT NOT NULL,
+    path TEXT NOT NULL,
+    frid INTEGER NOT NULL,
+    FOREIGN KEY(partversionid) REFERENCES partversion(partversionid),
+    FOREIGN KEY(frid) REFERENCES filerevision(frid),
+    UNIQUE(partversionid, path)
+);
+*/
 CREATE OR REPLACE FUNCTION update_commit_number()
 RETURNS TRIGGER
 LANGUAGE PLPGSQL
