@@ -101,6 +101,7 @@ func main() {
 		r.Get("/project/info", GetProjectInfo)
 		r.Get("/project/commit", RouteGetProjectCommit)
 		r.Get("/project/user", GetProjectsForUser)
+		r.Get("/project/latest", GetProjectLatestCommit) // TODO return more than just commit id
 		//r.Post("/project/restore", RouteProjectRestore)
 		r.Get("/project/status/by-id/{project-id}", GetProjectState) // TODO remove after v0.7.2 is released
 		r.Get("/project/status/by-id/{project-id}/{commit-no}", GetProjectState)

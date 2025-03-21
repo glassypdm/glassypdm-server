@@ -520,3 +520,28 @@ func RouteGetProjectCommit(w http.ResponseWriter, r *http.Request) {
 	}
 	WriteSuccess(w, string(OutputJson))
 }
+
+func GetProjectLatestCommit(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	_, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	if r.URL.Query().Get("pid") == "" {
+		WriteError(w, "incorrect format")
+		return
+	}
+	pid, err := strconv.Atoi(r.URL.Query().Get("pid"))
+	if err != nil {
+		WriteError(w, "incorrect format")
+		return
+	}
+	hehez, err := dal.Queries.GetLatestCommit(ctx, int32(pid))
+	if err != nil {
+		WriteError(w, "db error")
+		return
+	}
+	WriteSuccess(w, strconv.Itoa(int(hehez)))
+}

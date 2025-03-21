@@ -317,15 +317,15 @@ func (q *Queries) GetFileRevisionsByCommitId(ctx context.Context, commitid int32
 }
 
 const getLatestCommit = `-- name: GetLatestCommit :one
-SELECT MAX(commitid) FROM commit
-WHERE projectid = $1 LIMIT 1
+SELECT CAST(MAX(commitid) AS INTEGER) FROM commit
+WHERE projectid = $1
 `
 
-func (q *Queries) GetLatestCommit(ctx context.Context, projectid int32) (interface{}, error) {
+func (q *Queries) GetLatestCommit(ctx context.Context, projectid int32) (int32, error) {
 	row := q.db.QueryRow(ctx, getLatestCommit, projectid)
-	var max interface{}
-	err := row.Scan(&max)
-	return max, err
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const getProjectDiffBetweenCommits = `-- name: GetProjectDiffBetweenCommits :many

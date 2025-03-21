@@ -69,8 +69,8 @@ SELECT COUNT(*) FROM teampermission
 WHERE userid = $1 LIMIT 1;
 
 -- name: GetLatestCommit :one
-SELECT MAX(commitid) FROM commit
-WHERE projectid = $1 LIMIT 1;
+SELECT CAST(MAX(commitid) AS INTEGER) FROM commit
+WHERE projectid = $1;
 
 -- name: InsertTeam :one
 INSERT INTO team(name)
