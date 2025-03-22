@@ -33,6 +33,7 @@ type Member struct {
 	Email string `json:"email"`
 	Name  string `json:"name"`
 	Role  string `json:"role"`
+	Id    string `json:"id"`
 }
 
 type TeamCreationRequest struct {
@@ -158,7 +159,6 @@ type PermissionRequest struct {
 }
 
 // inputs: email of person to set, and the desired permission level, and what team
-// TODO: if setting a new owner, demote the old owner to manager
 func SetPermission(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -198,7 +198,7 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	} else if userPermisssion >= setterPermission {
 		WriteError(w, "invalid permission")
 		return
-	} else if proposedPermission >= setterPermission {
+	} else if proposedPermission >= setterPermission && setterPermission != 3 {
 		WriteError(w, "insufficient permission")
 		return
 	}
@@ -207,6 +207,11 @@ func SetPermission(w http.ResponseWriter, r *http.Request) {
 	// otherwise upsert teampermission
 	if proposedPermission != -4 {
 		_, err = dal.Queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: userID, Teamid: int32(teamId), Level: int32(proposedPermission)})
+		if proposedPermission == 3 {
+			// demote owner to manager if we are promoting a new owner
+			log.Info("demoting owner to manager since we are setting a new owner")
+			_, err = dal.Queries.SetTeamPermission(ctx, sqlcgen.SetTeamPermissionParams{Userid: setterId, Teamid: int32(teamId), Level: 2})
+		}
 
 	} else {
 		_, err = dal.Queries.DeleteTeamPermission(ctx, userID)
@@ -361,6 +366,7 @@ func QueryTeamInformation(w http.ResponseWriter, teamId int, userId string) {
 		default:
 			m.Role = "Undefined"
 		}
+		m.Id = member.Userid
 
 		hehe, res := FindUserInList(member.Userid, userlist)
 		if res {
