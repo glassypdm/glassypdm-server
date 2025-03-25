@@ -119,6 +119,43 @@ func (q *Queries) GetPermissionGroupMapping(ctx context.Context, pgroupid int32)
 	return items, nil
 }
 
+const getPermissionGroupsForUser = `-- name: GetPermissionGroupsForUser :many
+SELECT pg.pgroupid, pg.name
+FROM permissiongroup pg
+JOIN pgmembership pm ON pg.pgroupid = pm.pgroupid
+WHERE pm.userid = $1 AND pg.teamid = $2
+`
+
+type GetPermissionGroupsForUserParams struct {
+	Userid string `json:"userid"`
+	Teamid int32  `json:"teamid"`
+}
+
+type GetPermissionGroupsForUserRow struct {
+	Pgroupid int32  `json:"pgroupid"`
+	Name     string `json:"name"`
+}
+
+func (q *Queries) GetPermissionGroupsForUser(ctx context.Context, arg GetPermissionGroupsForUserParams) ([]GetPermissionGroupsForUserRow, error) {
+	rows, err := q.db.Query(ctx, getPermissionGroupsForUser, arg.Userid, arg.Teamid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPermissionGroupsForUserRow
+	for rows.Next() {
+		var i GetPermissionGroupsForUserRow
+		if err := rows.Scan(&i.Pgroupid, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTeamFromPGroup = `-- name: GetTeamFromPGroup :one
 SELECT teamid FROM permissiongroup WHERE
 pgroupid = $1 LIMIT 1

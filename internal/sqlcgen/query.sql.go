@@ -844,3 +844,23 @@ func (q *Queries) SetTeamPermission(ctx context.Context, arg SetTeamPermissionPa
 	err := row.Scan(&i.Userid, &i.Teamid, &i.Level)
 	return i, err
 }
+
+const verifyTeamMembership = `-- name: VerifyTeamMembership :one
+SELECT EXISTS (
+    SELECT 1
+    FROM teampermission
+    WHERE userid = $1 AND teamid = $2
+)
+`
+
+type VerifyTeamMembershipParams struct {
+	Userid string `json:"userid"`
+	Teamid int32  `json:"teamid"`
+}
+
+func (q *Queries) VerifyTeamMembership(ctx context.Context, arg VerifyTeamMembershipParams) (bool, error) {
+	row := q.db.QueryRow(ctx, verifyTeamMembership, arg.Userid, arg.Teamid)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}

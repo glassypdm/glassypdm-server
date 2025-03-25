@@ -118,7 +118,7 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	var request ProjectCreationRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 
@@ -126,26 +126,26 @@ func CreateProject(w http.ResponseWriter, r *http.Request) {
 	permission, err := dal.Queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: int32(request.TeamID), Userid: claims.Subject})
 	if err != nil {
 		log.Error("couldn't get team permission", "team", request.TeamID, "user", claims.Subject)
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	level := int(permission)
 	if level < 2 {
 		log.Error("insufficient permission for creating project", "team", request.TeamID, "user", claims.Subject)
-		WriteError(w, "insufficient permission")
+		WriteCustomError(w, "insufficient permission")
 		return
 	}
 
 	pid, err := dal.Queries.InsertProject(ctx, sqlcgen.InsertProjectParams{Teamid: int32(request.TeamID), Title: request.Name})
 	if err != nil {
 		log.Error("insufficient permission for creating project", "db error", err)
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	_, err = dal.Queries.InsertCommit(ctx, sqlcgen.InsertCommitParams{Projectid: pid, Userid: claims.Subject, Comment: "Initial commit", Numfiles: 0})
 	if err != nil {
 		log.Error("couldn't insert commit", "db error", err)
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	log.Info("succesfully created project", "project ID", pid, "name", request.Name)
@@ -161,13 +161,13 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("pid") == "" {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 
 	pid, err := strconv.Atoi(r.URL.Query().Get("pid"))
 	if err != nil {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 
@@ -283,7 +283,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 	projectIdStr := chi.URLParam(r, "project-id")
 	projectId, err := strconv.Atoi(projectIdStr)
 	if err != nil {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 	}
 
 	// something useful comment
@@ -296,13 +296,13 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 		commitno, err := strconv.Atoi(commitstr)
 		if err != nil {
 			log.Error("commit number url param is malformed")
-			WriteError(w, "incorrect format")
+			WriteCustomError(w, "incorrect format")
 			return
 		}
 		CommitId, err = dal.Queries.GetCommitIdFromNo(ctx, sqlcgen.GetCommitIdFromNoParams{Projectid: int32(projectId), Cno: pgtype.Int4{Valid: true, Int32: int32(commitno)}})
 		if err != nil {
 			log.Error("couldn't find commit number", "cno", commitno, "project", projectId)
-			WriteError(w, "what")
+			WriteCustomError(w, "what")
 			return
 		}
 		log.Debug("found commit id for cno:", "cid", CommitId, "cno", commitno)
@@ -310,7 +310,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 
 	if GetProjectPermissionByID(claims.Subject, projectId) < 1 {
 		log.Warn("insufficient permission", "user", claims.Subject, "projectId", projectId)
-		WriteError(w, "insufficient permission")
+		WriteCustomError(w, "insufficient permission")
 		return
 	}
 
@@ -320,7 +320,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 		output, err := dal.Queries.GetProjectState(ctx, int32(projectId))
 		if err != nil {
 			log.Error("db error", "project", projectId, "err", err.Error())
-			WriteError(w, "db error")
+			WriteCustomError(w, "db error")
 			return
 		}
 		if len(output) == 0 {
@@ -335,7 +335,7 @@ func GetProjectState(w http.ResponseWriter, r *http.Request) {
 		output, err := dal.Queries.GetProjectStateAtCommit(ctx, sqlcgen.GetProjectStateAtCommitParams{Projectid: int32(projectId), Commitid: int32(CommitId)})
 		if err != nil {
 			log.Error("db error", "project", projectId, "err", err.Error())
-			WriteError(w, "db error")
+			WriteCustomError(w, "db error")
 			return
 		}
 		if len(output) == 0 {
@@ -365,7 +365,7 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 	var request RestoreProjectRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		WriteError(w, "bad json")
+		WriteCustomError(w, "bad json")
 		return
 	}
 
@@ -375,7 +375,7 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 	projectPermission := GetProjectPermissionByID(userId, request.ProjectId)
 	if projectPermission < 3 {
 		log.Warn("user does not have permission to restore project state", "levl", projectPermission)
-		WriteError(w, "no permission")
+		WriteCustomError(w, "no permission")
 		return
 	}
 
@@ -386,7 +386,7 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Error("couldn't get number of files updated since", "error", err)
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 
@@ -394,14 +394,14 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 	info, err := dal.Queries.GetCommitInfo(ctx, int32(request.CommitId))
 	if err != nil {
 		log.Error("couldn't get commit number for message", "error", err)
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	// start transaction
 	tx, err := dal.DbPool.Begin(ctx)
 	if err != nil {
 		log.Error("couldn't create transaction", "error", err)
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	defer tx.Rollback(ctx)
@@ -415,7 +415,7 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 		Numfiles:  int32(FileCount)})
 	if err != nil {
 		log.Error("db couldn't create commit", "db err", err)
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 
@@ -424,7 +424,7 @@ func RouteProjectRestore(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Debug("params", "projectid", int32(request.ProjectId), "commit", int32(request.CommitId), "newcommit", NewCommitId)
 		log.Error("couldnt restore project due to database error", "db err", err)
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 
@@ -443,36 +443,36 @@ func RouteGetProjectCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("pid") == "" {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 
 	if r.URL.Query().Get("cno") == "" {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 	projectId, err := strconv.Atoi(r.URL.Query().Get("pid"))
 	if err != nil {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 	cno, err := strconv.Atoi(r.URL.Query().Get("cno"))
 	if err != nil {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 
 	// check permissions
 	if GetProjectPermissionByID(claims.Subject, projectId) < 1 {
 		log.Warn("insufficient permission", "user", claims.Subject, "projectId", projectId)
-		WriteError(w, "insufficient permission")
+		WriteCustomError(w, "insufficient permission")
 		return
 	}
 	CommitId, err := dal.Queries.GetCommitIdFromNo(
 		ctx,
 		sqlcgen.GetCommitIdFromNoParams{Projectid: int32(projectId), Cno: pgtype.Int4{Valid: true, Int32: int32(cno)}})
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 
@@ -480,7 +480,7 @@ func RouteGetProjectCommit(w http.ResponseWriter, r *http.Request) {
 	// get commit info for cno
 	CommitInfoDto, err := dal.Queries.GetCommitInfo(ctx, int32(CommitId))
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		log.Warn("encountered db error when getting commit info", "db", err, "commit-id", CommitId)
 		return
 	}
@@ -488,7 +488,7 @@ func RouteGetProjectCommit(w http.ResponseWriter, r *http.Request) {
 	// get file revisions
 	Files, err := dal.Queries.GetFileRevisionsByCommitId(ctx, int32(CommitId))
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		log.Warn("encountered db error when getting file revisions for commit", "db", err, "commit-id", CommitId)
 		return
 	}
@@ -499,7 +499,7 @@ func RouteGetProjectCommit(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.Get(ctx, CommitInfoDto.Userid)
 	name := ""
 	if err != nil {
-		WriteError(w, "invalid user id")
+		WriteCustomError(w, "invalid user id")
 		return
 	}
 	name = *usr.FirstName + " " + *usr.LastName
@@ -515,7 +515,7 @@ func RouteGetProjectCommit(w http.ResponseWriter, r *http.Request) {
 
 	OutputJson, err := json.Marshal(Output)
 	if err != nil {
-		WriteError(w, "json error")
+		WriteCustomError(w, "json error")
 		return
 	}
 	WriteSuccess(w, string(OutputJson))
@@ -530,17 +530,17 @@ func GetProjectLatestCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("pid") == "" {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 	pid, err := strconv.Atoi(r.URL.Query().Get("pid"))
 	if err != nil {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 	hehez, err := dal.Queries.GetLatestCommit(ctx, int32(pid))
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	WriteSuccess(w, strconv.Itoa(int(hehez)))

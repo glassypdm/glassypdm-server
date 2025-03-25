@@ -171,3 +171,10 @@ commitid > $1 AND projectid = $2;
 SELECT commitid FROM commit WHERE
 cno = $1 AND projectid = $2
 LIMIT 1;
+
+-- name: VerifyTeamMembership :one
+SELECT EXISTS (
+    SELECT 1
+    FROM teampermission
+    WHERE userid = $1 AND teamid = $2
+);

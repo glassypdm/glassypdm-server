@@ -115,6 +115,7 @@ func main() {
 		r.Post("/team/by-id/{team-id}/pgroup/create", CreatePermissionGroup)
 		r.Post("/pgroup/map", CreatePGMapping)
 		r.Get("/pgroup/info", GetPermissionGroupInfo)
+		r.Get("/team/by-id/{team-id}/pgroups/{user-id}", GetPermissionGroupForUser)
 		r.Get("/team/by-id/{team-id}/pgroups", GetPermissionGroupTeamInfo)
 		// remove mapping
 		r.Post("/pgroup/add", AddUserToPG)

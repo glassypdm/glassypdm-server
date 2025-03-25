@@ -45,3 +45,9 @@ pgme.userid = $1 AND pgma.projectid = $2 AND pgma.pgroupid = pgme.pgroupid;
 -- name: GetTeamFromPGroup :one
 SELECT teamid FROM permissiongroup WHERE
 pgroupid = $1 LIMIT 1;
+
+-- name: GetPermissionGroupsForUser :many
+SELECT pg.pgroupid, pg.name
+FROM permissiongroup pg
+JOIN pgmembership pm ON pg.pgroupid = pm.pgroupid
+WHERE pm.userid = $1 AND pg.teamid = $2;

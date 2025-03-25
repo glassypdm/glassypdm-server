@@ -33,14 +33,14 @@ func CreatePermissionGroup(w http.ResponseWriter, r *http.Request) {
 	var request PGCreationRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		WriteError(w, "bad json")
+		WriteCustomError(w, "bad json")
 		return
 	}
 
 	// check if user has permission to create pgroup for team
 	level := CheckPermissionByID(request.TeamID, string(claims.Subject))
 	if level < 2 {
-		WriteError(w, "insufficient permission")
+		WriteCustomError(w, "insufficient permission")
 		return
 	}
 
@@ -49,9 +49,9 @@ func CreatePermissionGroup(w http.ResponseWriter, r *http.Request) {
 		sqlcgen.CreatePermissionGroupParams{Teamid: int32(request.TeamID), Name: request.PGroupName})
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint") {
-			WriteError(w, "permission group exists")
+			WriteCustomError(w, "permission group exists")
 		} else {
-			WriteError(w, "db error")
+			WriteCustomError(w, "db error")
 		}
 		return
 	}
@@ -76,7 +76,7 @@ func CreatePGMapping(w http.ResponseWriter, r *http.Request) {
 	var request PGMappingRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		WriteError(w, "bad json")
+		WriteCustomError(w, "bad json")
 		return
 	}
 
@@ -84,15 +84,15 @@ func CreatePGMapping(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Error("db: team not found", "project", request.ProjectID)
-			WriteError(w, "team not found")
+			WriteCustomError(w, "team not found")
 		}
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	// check that user is a manager or owner
 	// TODO double check numbers
 	if CheckPermissionByID(int(team), claims.Subject) < 2 {
-		WriteError(w, "insufficient permission")
+		WriteCustomError(w, "insufficient permission")
 		return
 	}
 
@@ -101,7 +101,7 @@ func CreatePGMapping(w http.ResponseWriter, r *http.Request) {
 		sqlcgen.MapProjectToPermissionGroupParams{Projectid: int32(request.ProjectID), Pgroupid: int32(request.PGroupID)})
 	if err != nil {
 		// TODO if foreign key constraint, return different error
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 
@@ -119,20 +119,20 @@ func GetPermissionGroups(w http.ResponseWriter, r *http.Request) {
 	teamIdStr := chi.URLParam(r, "team-id")
 	teamId, err := strconv.Atoi(teamIdStr)
 	if err != nil {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 
 	groups, err := dal.Queries.ListPermissionGroupForTeam(ctx, int32(teamId))
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	log.Debug("permission groups:", "groups", groups)
 	groups_json, err := json.Marshal(groups)
 	if err != nil {
 		log.Error("couldn't convert json", "groups", groups)
-		WriteError(w, "db error: couldn't convert to json")
+		WriteCustomError(w, "db error: couldn't convert to json")
 		return
 	}
 	WriteSuccess(w, string(groups_json))
@@ -155,7 +155,7 @@ func RemoveUserFromPG(w http.ResponseWriter, r *http.Request) {
 	var request UserPGroupRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		WriteError(w, "bad json")
+		WriteCustomError(w, "bad json")
 		return
 	}
 
@@ -163,12 +163,12 @@ func RemoveUserFromPG(w http.ResponseWriter, r *http.Request) {
 	// i.e. is a manager
 	team, err := dal.Queries.GetTeamFromPGroup(ctx, int32(request.PGroupID))
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	level := CheckPermissionByID(int(team), claims.Subject)
 	if level < 2 {
-		WriteError(w, "insufficient permission")
+		WriteCustomError(w, "insufficient permission")
 		return
 	}
 
@@ -178,7 +178,7 @@ func RemoveUserFromPG(w http.ResponseWriter, r *http.Request) {
 			Pgroupid: int32(request.PGroupID),
 		})
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 	}
 	WriteDefaultSuccess(w, "member removed")
 }
@@ -195,7 +195,7 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 	var request UserPGroupRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		WriteError(w, "bad json")
+		WriteCustomError(w, "bad json")
 		return
 	}
 
@@ -204,12 +204,12 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 	team, err := dal.Queries.GetTeamFromPGroup(ctx, int32(request.PGroupID))
 	if err != nil {
 		// TODO if project doesnt exist return a different error
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	level := CheckPermissionByID(int(team), claims.Subject)
 	if level < 2 {
-		WriteError(w, "insufficient permission")
+		WriteCustomError(w, "insufficient permission")
 		return
 	}
 
@@ -217,9 +217,9 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 	_, err = dal.Queries.GetTeamPermission(ctx, sqlcgen.GetTeamPermissionParams{Teamid: team, Userid: request.Member})
 	if err != nil {
 		if err == sql.ErrNoRows {
-			WriteError(w, "user not found in team")
+			WriteCustomError(w, "user not found in team")
 		} else {
-			WriteError(w, "db error")
+			WriteCustomError(w, "db error")
 		}
 		return
 	}
@@ -228,7 +228,7 @@ func AddUserToPG(w http.ResponseWriter, r *http.Request) {
 	err = dal.Queries.AddMemberToPermissionGroup(ctx,
 		sqlcgen.AddMemberToPermissionGroupParams{Userid: request.Member, Pgroupid: int32(request.PGroupID)})
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	WriteDefaultSuccess(w, "user successfully added")
@@ -247,7 +247,7 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 	pgroup, err := strconv.Atoi(hehe)
 	if err != nil {
 		log.Error("incorrect query", "param", hehe)
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 
@@ -255,41 +255,41 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 	team, err := dal.Queries.GetTeamFromPGroup(ctx, int32(pgroup))
 	if err != nil {
 		log.Error("error fetching team from permission group", "err", err.Error())
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	level := CheckPermissionByID(int(team), caller)
 	if level <= 0 {
 		log.Debug("user's permission was insufficient", "user", caller, "level", level)
-		WriteError(w, "insufficient permission")
+		WriteCustomError(w, "insufficient permission")
 		return
 	}
 
 	// fetch projects for team
 	TeamProjects, err := dal.Queries.FindTeamProjects(ctx, team)
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 
 	// fetch projects for permission group
 	pgProjects, err := dal.Queries.GetPermissionGroupMapping(ctx, int32(pgroup))
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 
 	// fetch membership for permission group
 	pgMembership, err := dal.Queries.ListPermissionGroupMembership(ctx, int32(pgroup))
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 
 	// fetch membership for team
 	TeamMembership, err := dal.Queries.GetTeamMembership(ctx, team)
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 
@@ -311,7 +311,7 @@ func GetPermissionGroupInfo(w http.ResponseWriter, r *http.Request) {
 	// TODO smarter value?
 	clerklist, err := user.List(ctx, &user.ListParams{ListParams: clerk.ListParams{Limit: clerk.Int64(500)}})
 	if err != nil {
-		WriteError(w, "clerk error")
+		WriteCustomError(w, "clerk error")
 		return
 	}
 	userlist := clerklist.Users
@@ -357,6 +357,12 @@ type PermissionGroupTeamInfo struct {
 	TeamProjects     []Project         `json:"team_projects"`
 }
 
+type UserPermissionGroups struct {
+	UserPermissionGroups []sqlcgen.GetPermissionGroupsForUserRow `json:"user_permission_groups"`
+	TeamPermissionGroups []sqlcgen.ListPermissionGroupForTeamRow `json:"team_permission_groups"`
+	CallerRole           TeamRole                                `json:"caller_role"`
+}
+
 func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	_, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -368,7 +374,7 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 	teamIdStr := chi.URLParam(r, "team-id")
 	teamId, err := strconv.Atoi(teamIdStr)
 	if err != nil {
-		WriteError(w, "incorrect format")
+		WriteCustomError(w, "incorrect format")
 		return
 	}
 
@@ -376,7 +382,7 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 
 	projects, err := dal.Queries.FindTeamProjects(ctx, int32(teamId))
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	for _, projectDto := range projects {
@@ -386,14 +392,14 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 	// TODO smarter value?
 	clerklist, err := user.List(ctx, &user.ListParams{ListParams: clerk.ListParams{Limit: clerk.Int64(500)}})
 	if err != nil {
-		WriteError(w, "clerk error")
+		WriteCustomError(w, "clerk error")
 		return
 	}
 	userlist := clerklist.Users
 
 	users, err := dal.Queries.GetTeamMembership(ctx, int32(teamId))
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	for _, UserDto := range users {
@@ -406,7 +412,7 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	groups, err := dal.Queries.ListPermissionGroupForTeam(ctx, int32(teamId))
 	if err != nil {
-		WriteError(w, "db error")
+		WriteCustomError(w, "db error")
 		return
 	}
 	for _, GroupDto := range groups {
@@ -430,6 +436,59 @@ func GetPermissionGroupTeamInfo(w http.ResponseWriter, r *http.Request) {
 		group.PGroupMembership = members
 		output.PermissionGroups = append(output.PermissionGroups, group)
 	}
+	output_bytes, _ := json.Marshal(output)
+	WriteSuccess(w, string(output_bytes))
+}
+
+func GetPermissionGroupForUser(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"access": "unauthorized"}`))
+		return
+	}
+	teamIdStr := chi.URLParam(r, "team-id")
+	teamId, err := strconv.Atoi(teamIdStr)
+	if err != nil {
+		WriteCustomError(w, "incorrect format")
+		return
+	}
+	userId := chi.URLParam(r, "user-id")
+
+	MembershipVerified, err := dal.Queries.VerifyTeamMembership(ctx, sqlcgen.VerifyTeamMembershipParams{Teamid: int32(teamId), Userid: claims.Subject})
+	if err != nil {
+		WriteError(w, DbError)
+		return
+	}
+
+	if !MembershipVerified {
+		WriteError(w, NoPermission)
+		return
+	}
+
+	UserPGroups, err := dal.Queries.GetPermissionGroupsForUser(ctx, sqlcgen.GetPermissionGroupsForUserParams{Teamid: int32(teamId), Userid: userId})
+	if err != nil {
+		WriteError(w, DbError)
+		return
+	}
+
+	TeamPGroups, err := dal.Queries.ListPermissionGroupForTeam(ctx, int32(teamId))
+	if err != nil {
+		WriteError(w, DbError)
+		return
+	}
+
+	level := CheckPermissionByID(teamId, claims.Subject)
+	role, err := GetTeamRole(level)
+	if err != nil {
+		log.Warn("invalid permission")
+		// don't return here, because role is 0
+	}
+	var output UserPermissionGroups
+	output.TeamPermissionGroups = TeamPGroups
+	output.UserPermissionGroups = UserPGroups
+	output.CallerRole = role
 	output_bytes, _ := json.Marshal(output)
 	WriteSuccess(w, string(output_bytes))
 }
