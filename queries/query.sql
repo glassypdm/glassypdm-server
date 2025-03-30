@@ -104,13 +104,13 @@ WHERE projectid = $1 AND path = $2 AND commitid = $3 LIMIT 1;
 
 -- name: GetProjectState :many
 SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
-INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision WHERE filerevision.projectid = $1 GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
 WHERE a.projectid = $1;
 
 -- name: GetProjectStateAtCommit :many
 SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
-INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision WHERE filerevision.commitid <= $2 GROUP BY path  ) b
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision WHERE filerevision.commitid <= $2 AND filerevision.projectid = $1 GROUP BY path  ) b
 ON a.path = b.path AND a.frid = b.frid
 WHERE a.projectid = $1 AND a.commitid <= $2;
 

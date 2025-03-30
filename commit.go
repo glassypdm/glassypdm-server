@@ -213,6 +213,7 @@ func GetCommits(w http.ResponseWriter, r *http.Request) {
 		usr, err := user.Get(ctx, Commit.Userid)
 		name := ""
 		if err != nil {
+			log.Error("user invalid", "userid", Commit.Userid)
 			WriteCustomError(w, "invalid user id")
 			return
 		}
@@ -286,6 +287,7 @@ func GetCommitInformation(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.Get(ctx, CommitInfoDto.Userid)
 	name := ""
 	if err != nil {
+		log.Error("user invalid", "userid", CommitInfoDto.Userid)
 		WriteCustomError(w, "invalid user id")
 		return
 	}

@@ -428,7 +428,7 @@ func (q *Queries) GetProjectLivingFiles(ctx context.Context, projectid int32) ([
 
 const getProjectState = `-- name: GetProjectState :many
 SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
-INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision GROUP BY path ) b
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision WHERE filerevision.projectid = $1 GROUP BY path ) b
 ON a.path = b.path AND a.frid = b.frid
 WHERE a.projectid = $1
 `
@@ -471,7 +471,7 @@ func (q *Queries) GetProjectState(ctx context.Context, projectid int32) ([]GetPr
 
 const getProjectStateAtCommit = `-- name: GetProjectStateAtCommit :many
 SELECT a.frid, a.path, a.commitid, a.filehash, a.changetype, a.filesize as blocksize FROM filerevision a
-INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision WHERE filerevision.commitid <= $2 GROUP BY path  ) b
+INNER JOIN ( SELECT path, MAX(frid) frid FROM filerevision WHERE filerevision.commitid <= $2 AND filerevision.projectid = $1 GROUP BY path  ) b
 ON a.path = b.path AND a.frid = b.frid
 WHERE a.projectid = $1 AND a.commitid <= $2
 `

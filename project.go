@@ -499,6 +499,7 @@ func RouteGetProjectCommit(w http.ResponseWriter, r *http.Request) {
 	usr, err := user.Get(ctx, CommitInfoDto.Userid)
 	name := ""
 	if err != nil {
+		log.Error("user invalid", "userid", CommitInfoDto.Userid)
 		WriteCustomError(w, "invalid user id")
 		return
 	}
