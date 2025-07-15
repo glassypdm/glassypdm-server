@@ -16,9 +16,11 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/joshtenorio/glassypdm-server/internal/dal"
+	"github.com/joshtenorio/glassypdm-server/internal/observer"
 	"github.com/joshtenorio/glassypdm-server/internal/sqlcgen"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/posthog/posthog-go"
 	"lukechampine.com/blake3"
 )
 
@@ -75,6 +77,11 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 	file, header, err := r.FormFile("chunk")
 	if err != nil {
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: UserId,
+			Event:      "chunk-upload-failed",
+			Properties: posthog.NewProperties().Set("failure-type", "file read"),
+		})
 		WriteCustomError(w, "cannot read file")
 		return
 	}
@@ -96,6 +103,11 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	// ensure user can upload to at least one project/team
 	if !canUserUpload(UserId) {
 		WriteCustomError(w, "no upload permission")
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: UserId,
+			Event:      "chunk-upload-failed",
+			Properties: posthog.NewProperties().Set("failure-type", "no permission"),
+		})
 		return
 	}
 
@@ -103,12 +115,22 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 	if _, err := file.Seek(0, 0); err != nil {
 		WriteCustomError(w, "error reading file")
 		log.Error("couldn't read file", "err", err.Error())
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: UserId,
+			Event:      "chunk-upload-failed",
+			Properties: posthog.NewProperties().Set("failure-type", "setting position to 0"),
+		})
 		return
 	}
 
 	s3, err := generateS3Client()
 	if err != nil {
 		log.Error("couldn't connect to s3", "err", err.Error())
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: UserId,
+			Event:      "chunk-upload-failed",
+			Properties: posthog.NewProperties().Set("failure-type", "s3 connection failed"),
+		})
 		WriteCustomError(w, "issue connecting to s3")
 		return
 	}
@@ -136,7 +158,17 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 				var e *pgconn.PgError
 				if errors.As(err, &e) && e.Code == pgerrcode.UniqueViolation {
 					// chunk exists already
+					observer.PostHogClient.Enqueue(posthog.Capture{
+						DistinctId: UserId,
+						Event:      "chunk-upload-warned",
+						Properties: posthog.NewProperties().Set("warning-type", "s3 connection failed"),
+					})
 				} else {
+					observer.PostHogClient.Enqueue(posthog.Capture{
+						DistinctId: UserId,
+						Event:      "chunk-upload-failed",
+						Properties: posthog.NewProperties().Set("failure-type", "db chunk insert"),
+					})
 					log.Error("couldn't insert chunk", "db", err.Error())
 					WriteCustomError(w, "db error")
 					return
@@ -158,7 +190,12 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		minio.PutObjectOptions{ContentType: "application/octet-stream"})
 
 	if err != nil {
-		log.Error("couldn't connect to s3", "s3", err.Error())
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: UserId,
+			Event:      "chunk-upload-failed",
+			Properties: posthog.NewProperties().Set("failure-type", "s3 upload failed"),
+		})
+		log.Error("couldn't upload to s3", "s3", err.Error())
 		WriteCustomError(w, "issue connecting to s3")
 		return
 	}
@@ -176,6 +213,11 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 			minio.RemoveObjectOptions{})
 
 		dal.Queries.RemoveHash(ctx, hashUser)
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: UserId,
+			Event:      "chunk-upload-failed",
+			Properties: posthog.NewProperties().Set("failure-type", "hash doesn't match"),
+		})
 		return
 	}
 
@@ -190,13 +232,27 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		var e *pgconn.PgError
 		if errors.As(err, &e) && e.Code == pgerrcode.UniqueViolation {
 			log.Warn("duplicate found") // TODO downgrade to ifno
+			observer.PostHogClient.Enqueue(posthog.Capture{
+				DistinctId: UserId,
+				Event:      "chunk-upload-warned",
+				Properties: posthog.NewProperties().Set("warning-type", "duplicate chunk in db"),
+			})
 		} else {
 			log.Error("couldn't insert chunk", "sql", err.Error())
+			observer.PostHogClient.Enqueue(posthog.Capture{
+				DistinctId: UserId,
+				Event:      "chunk-upload-failed",
+				Properties: posthog.NewProperties().Set("failure-type", "db chunk insert"),
+			})
 			WriteCustomError(w, "db error")
 			return
 		}
 
 	}
+	observer.PostHogClient.Enqueue(posthog.Capture{
+		DistinctId: UserId,
+		Event:      "chunk-upload-succeeded",
+	})
 	WriteDefaultSuccess(w, "upload successful")
 }
 

@@ -13,8 +13,10 @@ import (
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joshtenorio/glassypdm-server/internal/dal"
+	"github.com/joshtenorio/glassypdm-server/internal/observer"
 	"github.com/joshtenorio/glassypdm-server/internal/project"
 	"github.com/joshtenorio/glassypdm-server/internal/sqlcgen"
+	"github.com/posthog/posthog-go"
 
 	"github.com/joho/godotenv"
 
@@ -41,10 +43,17 @@ func main() {
 	PSQLUrl := os.Getenv("PSQL_URL")
 	PSQLDatabase := os.Getenv("PSQL_DATABASE")
 	PSQLFullURL := os.Getenv("PSQL_FULL_URL")
-	if PSQLUser == "" || PSQLPass == "" || PSQLUrl == "" || PSQLDatabase == "" || PSQLFullURL == "" {
+	PostHogAPIKey := os.Getenv("POSTHOG_API_KEY")
+	if PSQLUser == "" || PSQLPass == "" || PSQLUrl == "" || PSQLDatabase == "" || PSQLFullURL == "" || PostHogAPIKey == "" {
 		log.Fatal("Missing a database environment")
 	}
 	var err error
+
+	observer.PostHogClient, err = posthog.NewWithConfig(PostHogAPIKey, posthog.Config{Endpoint: "https://us.i.posthog.com"})
+	if err != nil {
+		log.Fatal("could not connect to posthog")
+	}
+	defer observer.PostHogClient.Close()
 
 	url := PSQLFullURL
 	//log.Debug("PSQL url", "url", url)
@@ -76,6 +85,10 @@ func main() {
 
 	r.Use(middleware.Logger)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: "test-user",
+			Event:      "test-snippet",
+		})
 		w.Write([]byte("Hello"))
 	})
 	r.Get("/version", getVersion)
@@ -126,4 +139,5 @@ func main() {
 	port := os.Getenv("PORT")
 	log.Info("Listening on localhost", "port", port)
 	http.ListenAndServe(":"+port, r)
+
 }

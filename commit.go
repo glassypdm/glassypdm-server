@@ -14,7 +14,9 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/joshtenorio/glassypdm-server/internal/dal"
+	"github.com/joshtenorio/glassypdm-server/internal/observer"
 	"github.com/joshtenorio/glassypdm-server/internal/sqlcgen"
+	"github.com/posthog/posthog-go"
 )
 
 /*
@@ -50,6 +52,11 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	// check permission
 	projectPermission := GetProjectPermissionByID(userId, request.ProjectId)
 	if projectPermission < 2 {
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: userId,
+			Event:      "commit-failed",
+			Properties: posthog.NewProperties().Set("failure-type", "no permission"),
+		})
 		WriteCustomError(w, "no permission")
 		return
 	}
@@ -58,6 +65,11 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	tx, err := dal.DbPool.Begin(ctx)
 	if err != nil {
 		log.Error("couldn't create transaction", "error", err)
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: userId,
+			Event:      "commit-failed",
+			Properties: posthog.NewProperties().Set("failure-type", "db transaction"),
+		})
 		WriteCustomError(w, "db error")
 		return
 	}
@@ -71,6 +83,11 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 		Numfiles:  int32(len(request.Files))})
 	if err != nil {
 		log.Error("db couldn't create commit", "db err", err)
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: userId,
+			Event:      "commit-failed",
+			Properties: posthog.NewProperties().Set("failure-type", "db commit insert"),
+		})
 		WriteCustomError(w, "db error")
 		return
 	}
@@ -109,6 +126,11 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 				continue
 			} else {
 				log.Error("now-handled error inserting file revision", "db", err)
+				observer.PostHogClient.Enqueue(posthog.Capture{
+					DistinctId: userId,
+					Event:      "commit-failed",
+					Properties: posthog.NewProperties().Set("failure-type", "db filerevision insert"),
+				})
 				WriteCustomError(w, "db error")
 				return
 			}
@@ -119,6 +141,13 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	hashes_bytes, _ := json.Marshal(hashesMissing)
 	if len(hashesMissing) > 0 {
 		log.Warn("found missing hashes", "len", len(hashesMissing))
+		observer.PostHogClient.Enqueue(posthog.Capture{
+			DistinctId: userId,
+			Event:      "commit-failed",
+			Properties: posthog.NewProperties().
+				Set("failure-type", "missing hashes").
+				Set("numberHashesMissing", len(hashesMissing)),
+		})
 		// respond with nb
 		PrintResponse(w, "nb", string(hashes_bytes))
 		return
@@ -132,6 +161,11 @@ func CreateCommit(w http.ResponseWriter, r *http.Request) {
 	output_bytes, _ := json.Marshal(output)
 	durationTwo := time.Since(start)
 	log.Info("transaction took " + durationTwo.String())
+	observer.PostHogClient.Enqueue(posthog.Capture{
+		DistinctId: userId,
+		Event:      "commit-succeeded",
+		Properties: posthog.NewProperties().Set("project-id", request.ProjectId),
+	})
 	WriteSuccess(w, string(output_bytes))
 }
 
