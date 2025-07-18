@@ -8,13 +8,14 @@ toolchain go1.23.1
 require (
 	github.com/charmbracelet/log v0.4.1
 	github.com/clerk/clerk-sdk-go/v2 v2.2.0
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-chi/cors v1.2.1
 	github.com/go-chi/jwtauth/v5 v5.3.2
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jackc/pgx/v5 v5.7.3
 	github.com/joho/godotenv v1.5.1
 	github.com/minio/minio-go/v7 v7.0.88
+	github.com/posthog/posthog-go v1.5.14
 	lukechampine.com/blake3 v1.4.0
 )
 
@@ -50,7 +51,6 @@ require (
 	github.com/minio/crc64nvme v1.0.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
-	github.com/posthog/posthog-go v1.5.14 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
