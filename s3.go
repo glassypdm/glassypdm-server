@@ -145,6 +145,11 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 		var e *pgconn.PgError
 		if errors.As(err, &e) && e.Code == pgerrcode.UniqueViolation {
 			log.Warn("found duplicate hash", "hash", hashUser)
+			observer.PostHogClient.Enqueue(posthog.Capture{
+				DistinctId: UserId,
+				Event:      "chunk-upload-warned",
+				Properties: posthog.NewProperties().Set("warning-type", "db unique violation (hash already exists in db)"),
+			})
 
 			// insert the chunk because we need to anyways
 			err = dal.Queries.InsertChunk(ctx, sqlcgen.InsertChunkParams{
@@ -161,7 +166,7 @@ func HandleUpload(w http.ResponseWriter, r *http.Request) {
 					observer.PostHogClient.Enqueue(posthog.Capture{
 						DistinctId: UserId,
 						Event:      "chunk-upload-warned",
-						Properties: posthog.NewProperties().Set("warning-type", "s3 connection failed"),
+						Properties: posthog.NewProperties().Set("warning-type", "db unique violation (chunk already exists in db)"),
 					})
 				} else {
 					observer.PostHogClient.Enqueue(posthog.Capture{
